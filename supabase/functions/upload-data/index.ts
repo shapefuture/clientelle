@@ -2,8 +2,7 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js';
-// dotenv для локального тестирования. В развернутой функции переменные окружения доступны автоматически.
-import 'https://deno.land/x/dotenv@v3.2.2/load.ts';
+// NOTE: Do not import dotenv in deployed edge functions; environment variables are injected automatically.
 
 // Получаем URL Supabase и наш Service Role Key из переменных окружения
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -27,18 +26,21 @@ serve(async (req) => {
      return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
 
-  // Парсим тело запроса (ожидаем JSON)
-  const { text_content, source_metadata } = await req.json();
+  // Parse POST body (expecting JSON)
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+  const { text_content, source_metadata, user_ai_key } = body;
 
-  // Проверяем наличие необходимых данных
+  // Validate required fields
   if (!text_content) {
-     return new Response(JSON.stringify({ error: 'text_content is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'text_content is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
-  // Получаем user_id. Лучше всего, если фронтенд передает user_id текущего пользователя.
-  // Если вы полагаетесь на RLS и передаете Service Role Key, user_id при insert/update нужно устанавливать явно.
-  // В этом примере предполагаем, что user_id передан в source_metadata
-  const user_id = source_metadata?.user_id || null; // Получаем user_id из метаданных или null
+  const user_id = source_metadata?.user_id || null; // Require user_id to be set from frontend/session
 
    if (!user_id) {
        // Если user_id не пришел, и функция не защищена JWT, мы не знаем, чей это пользователь.
@@ -77,46 +79,39 @@ serve(async (req) => {
 
     if (rawDataError) throw rawDataError; // Если ошибка при сохранении текста, прекращаем выполнение
 
-    // 3. Опционально: Вызываем функцию AI-анализа для только что сохраненных данных
-    // Это можно сделать либо прямым вызовом другой Edge Function, либо добавив запись в очередь (если у вас есть таблица 'analysis_queue')
-
-    // Пример прямого вызова функции 'process-ai-analysis':
-    // Важно: При вызове одной Edge Function из другой, они должны быть в одном регионе
-    // и вызываться с правами service_role (если нужно).
+    // 3. Trigger process-ai-analysis edge function and securely pass user_ai_key
     try {
-        const { data: analysisInvokeResult, error: analysisInvokeError } = await supabase.functions.invoke('process-ai-analysis', {
-          body: { raw_data_id: rawData.id, user_id: user_id }, // Передаем ID сырых данных и user_id для анализа
-          // Headers для аутентификации, если функция process-ai-analysis защищена JWT.
-          // Если обе функции развернуты с --no-verify-jwt и вызываются с Service Role, auth не нужен.
-          // headers: { 'Authorization': `Bearer ${serviceRoleKey}` } // Пример вызова с Service Role Key (может не сработать напрямую)
-        });
-
-        if (analysisInvokeError) {
-            console.error('Error invoking process-ai-analysis function:', analysisInvokeError);
-            // Можно записать ошибку в лог или статус в analysis_queue
-        } else {
-            console.log('Successfully invoked process-ai-analysis function:', analysisInvokeResult);
+      const { data: analysisInvokeResult, error: analysisInvokeError } = await supabase.functions.invoke('process-ai-analysis', {
+        body: {
+          raw_data_id: rawData.id,
+          user_id: user_id,
+          user_ai_key: user_ai_key // pass (may be undefined/null)
         }
+      });
+
+      if (analysisInvokeError) {
+        // Do NOT log user_ai_key, just log the error message
+        console.error('Error invoking process-ai-analysis function:', analysisInvokeError);
+      }
     } catch (invokeErr) {
-         console.error('Exception during invoking process-ai-analysis function:', invokeErr);
+      console.error('Exception during invoking process-ai-analysis function:', invokeErr);
     }
 
 
-    // 4. Возвращаем успешный ответ фронтенду
+    // 4. Return success response to frontend
     return new Response(JSON.stringify({
       message: 'Data uploaded and analysis function invoked',
-      raw_data_id: rawData.id, // Возвращаем ID сохраненных данных
-      source_id: source.id, // Возвращаем ID источника
-      // status_invoke: analysisInvokeError ? 'failed' : 'success' // Статус вызова анализа
+      raw_data_id: rawData.id,
+      source_id: source.id
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (error: any) {
-    // Обработка ошибок при работе с БД или вызове других функций
-    console.error('Error in upload-data function:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    // Error handler
+    console.error('Error in upload-data function:', error?.message);
+    return new Response(JSON.stringify({ error: error?.message || "Unknown error" }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

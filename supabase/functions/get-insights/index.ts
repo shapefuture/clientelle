@@ -2,7 +2,7 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js';
-import 'https://deno.land/x/dotenv@v3.2.2/load.ts'; // Для локального тестирования
+// NOTE: Do not import dotenv in deployed edge functions; environment variables are injected automatically.
 
 // Получаем URL Supabase и Anon Key (публичный ключ)
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
