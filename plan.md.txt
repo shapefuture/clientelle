@@ -1,0 +1,117 @@
+# Project Completion Plan: SvelteKit + Supabase Clientelle 
+## Overall Context
+
+You are an AI assistant tasked with completing the core functionality of a SvelteKit web application that uses Supabase as its backend. The project allows users to upload text data, process it using AI (LLMs) to extract structured insights (quotes, nodes, edges, ideas), store these insights in a Supabase PostgreSQL database, and visualize them on a SvelteKit frontend.
+
+**Key Requirement:** Users should be able to use **their own** AI API keys for the LLM calls.
+
+## Current Project State
+
+1.  **Repository:** The code is located in the current directory (a Git repository).
+2.  **Frontend (SvelteKit):**
+    * SvelteKit is set up (based on the engageintellect/sveltekit-supabase template).
+    * The server-side Supabase client is initialized in `src/hooks.server.ts` using `@supabase/ssr` and available via `event.locals.supabase`. It uses `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY`. Authentication helpers (`safeGetSession`) are present.
+    * Frontend environment variables (`.env`) are configured locally.
+3.  **Backend (Supabase):**
+    * `supabase/` structure is initialized.
+    * Supabase secrets (`SERVICE_KEY` is still needed for DB operations, `OPENROUTER_API_KEY`, `GEMINI_API_KEY` might be used as fallbacks or for project-wide tasks, but **user keys will be prioritized for analysis**).
+    * Database schema is defined in `supabase/migrations/YYYYMMDDHHMMSS_initial_schema.sql` (tables: `sources`, `raw_data`, `quotes`, `nodes`, `edges`, `quote_node_links`, `ideas` with RLS and `embedding` column) and deployed (`supabase db push`).
+4.  **Edge Functions:** Skeleton `index.ts` files exist in `supabase/functions/upload-data/`, `supabase/functions/process-ai-analysis/`, and `supabase/functions/get-insights/`. Necessary npm dependencies (`@supabase/supabase-js`, `node-fetch`, `litellm`, `dotenv`) are installed in each function's directory. Deno import syntax (`npm:...`) has been corrected. Docker is available for bundling.
+
+## Overall Goal
+
+Implement the core functionality to support user-provided AI API keys, complete the Edge Function logic, and connect them to the SvelteKit frontend.
+
+**CRITICAL SECURITY WARNING:**
+
+**DO NOT expose or use user-provided AI API keys directly on the frontend.**
+Keys must be securely transmitted from the frontend to the backend function (via HTTPS POST request body or headers) and used **only** within that backend function.
+For production applications, storing user keys persistently requires **encryption at rest** in the database and careful access control. This plan focuses on passing the key per request for simplicity, but be aware of the implications.
+
+## Detailed Implementation Tasks
+
+Work on the following files and areas:
+
+### Task 1: Complete Edge Function Logic (`supabase/functions/.../index.ts`)
+
+Implement the full logic for each function based on the provided skeletons and requirements, prioritizing user-provided keys.
+
+* **File:** `supabase/functions/upload-data/index.ts`
+    * Receive `text_content`, `source_metadata` (including `user_id`), and **`user_ai_key`** (the user's API key string) via HTTP POST body. **Ensure the connection is HTTPS when sending the key.**
+    * Validate input.
+    * Save `source_metadata` into the `sources` table, linking to the `user_id`.
+    * Save `text_content` into the `raw_data` table, linking to the `source` and `user_id`.
+    * **Trigger `process-ai-analysis` function:** After successfully saving `raw_data`, make an internal function invocation call to `supabase.functions.invoke('process-ai-analysis', { body: { raw_data_id: rawData.id, user_id: user_id, user_ai_key: user_ai_key } })`. **Securely pass the `user_ai_key` to the analysis function.** Handle potential errors during invocation.
+    * Return success response with `raw_data_id` and `source_id`.
+    * Implement robust error handling.
+
+* **File:** `supabase/functions/process-ai-analysis/index.ts`
+    * Receive `raw_data_id`, `user_id`, and **`user_ai_key`** via HTTP POST body.
+    * Validate input.
+    * Initialize Supabase client with `Deno.env.get('SUPABASE_URL')` and `Deno.env.get('SERVICE_KEY')` for privileged DB access.
+    * Fetch `content` from the `raw_data` table using `raw_data_id` and `user_id`.
+    * **Determine the API key to use:** Prioritize `user_ai_key` if provided and valid. As a fallback (e.g., if user didn't provide a key, or for specific project tasks), use the project's secrets (`Deno.env.get('OPENROUTER_API_KEY')` or `Deno.env.get('GEMINI_API_KEY')`).
+    * **Define and refine the LLM prompt:** Create clear `system_prompt` and `user_prompt` for analysis and structured JSON output.
+    * Call the LLM using `litellm.completion()`, passing the **determined API key** (either `user_ai_key` or a project secret) and the chosen model.
+    * Implement **robust parsing** of the LLM's JSON response. Handle errors.
+    * Implement the **database saving logic** using the Service Role client:
+        * Insert `quotes`, `nodes`. Create mapping (LLM temp ID -> DB UUID).
+        * (Optional) Generate/save vector embeddings for quotes/nodes.
+        * Insert `edges`, `quote_node_links` using the ID mapping.
+        * Ensure `user_id` is set correctly. Mark as `is_suggestion = true`.
+    * Update `raw_data.processed_at`.
+    * Implement robust error handling and appropriate HTTP responses. **Do NOT log the user's API key.**
+
+* **File:** `supabase/functions/get-insights/index.ts`
+    * This function typically does **not** need the user's API key or the Service Role Key for standard data retrieval (RLS handles user data).
+    * Implement database querying logic based on `user_id` and `view_type` using the client initialized with the public key (`SUPABASE_ANON_KEY`).
+    * Implement filtering/sorting/pagination.
+    * Ensure robust error handling and return fetched data as JSON.
+
+### Task 2: Connect Frontend to Functions (`src/...`)
+
+Modify the SvelteKit application to get the user's key, send it securely, and interact with the backend.
+
+* **Locate relevant files:** `+page.svelte`, `+page.server.ts`, `+server.ts`.
+* **User Key Input UI:** Create a UI element (e.g., on a settings page or upload form) where the user can input their API key(s). Consider if the key should be saved (requires backend endpoint and encrypted DB storage) or just used for the current session/request. **For this plan, assume the user inputs the key for each upload or stores it temporarily.**
+* **Upload UI and Logic:**
+    * Modify the upload form/page to include an input field for the user's AI API key.
+    * In the corresponding `+page.server.ts` or a dedicated `+server.ts` route handling the form submission, access the input text, metadata, `user_id` (from `safeGetSession`), and the **user's API key from the form submission**.
+    * Access `event.locals.supabase`.
+    * Call `supabase.functions.invoke('upload-data', { body: { text_content: ..., source_metadata: { user_id: (await safeGetSession()).user?.id, ... }, user_ai_key: userKeyFromForm } })`. **Send the user's key securely in the body.**
+    * Handle success and errors on the frontend.
+* **Display UI and Data Fetching:** (Remains largely the same as the previous plan)
+    * Use `+page.server.ts` load functions to call `get-insights` via `supabase.functions.invoke` to fetch data.
+    * Pass fetched data to `.svelte` components for rendering.
+* **Authentication Integration:** (Remains the same) Use `safeGetSession` for route protection.
+
+### Task 3: Placeholder Replacement & Code Cleanup
+
+* Review all files.
+* Replace remaining placeholders and comments.
+* Remove `dotenv` import/load from function files.
+
+### Task 4: Prepare for Deployment
+
+* Ensure all changes are saved.
+* Verify `npm run build` works locally.
+* Ensure all dependencies are installed.
+
+## Libraries and Tools
+
+* Supabase CLI (`supabase`)
+* `@supabase/supabase-js`
+* `@supabase/ssr` (used in SvelteKit)
+* `litellm`
+* `node-fetch` (or Deno's built-in `Workspace`)
+* SvelteKit's `$env/static/public`
+* Git
+* Docker (for `supabase functions deploy`)
+* (Optional Frontend Libs): D3.js, vis.js, etc.
+
+## Next Steps (After AI Completes Coding)
+
+1.  Deploy Edge Functions: `supabase functions deploy <function_name> --no-verify-jwt` for each function.
+2.  Commit and Push: `git add . && git commit -m "Implement user key support and core features" && git push origin main`.
+3.  Deploy Frontend: Using Vercel, Netlify, or Cloudflare Pages, configure environment variables (`PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, etc.) and trigger deployment. Ensure your hosting uses HTTPS.
+4.  Test the deployed application thoroughly, paying close attention to how user keys are handled.
