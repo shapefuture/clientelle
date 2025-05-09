@@ -26,32 +26,24 @@
 		uploadError = '';
 		uploadSuccessMsg = '';
 		try {
-			const sessionUserId = data?.userProfile?.userId || data?.userProfile?.id || data?.user?.id;
-			if (!sessionUserId) throw new Error('No user session found.');
-
-			const res = await fetch(`${PUBLIC_SUPABASE_URL}/functions/v1/upload-data`, {
+			const res = await fetch('/upload', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
 					text_content: textContent,
-					source_metadata: {
-						user_id: sessionUserId,
-						type: sourceType,
-						url: sourceUrl
-					},
+					source_type: sourceType,
+					source_url: sourceUrl,
 					user_ai_key: userAiKey
 				})
 			});
-
 			const result = await res.json();
 			if (!res.ok) {
 				throw new Error(result?.error || 'Upload failed');
 			}
 			uploadStatus = 'success';
 			uploadSuccessMsg = 'Upload successful! Your data is being processed.';
-			// Optionally reset form fields
 			textContent = '';
 			sourceUrl = '';
 			userAiKey = '';
