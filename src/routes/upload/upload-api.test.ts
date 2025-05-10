@@ -24,14 +24,27 @@ async function postUpload(body) {
   let { status, json } = await postUpload({ text_content: "Test", user_ai_key: "sk-test-123" });
   assert(status === 401 || json.error);
 
-  // Test: missing text_content
-  // (simulate being logged in by mocking safeGetSession if possible)
-  // let { status, json } = await postUpload({ user_ai_key: "sk-test-123" });
-  // assert(status === 400 && json.error);
+  // Test: missing text_content (simulate logged-in)
+  // To fully test, mock authentication/session in your test environment.
+  /*
+  let { status, json } = await postUpload({ user_ai_key: "sk-test-123" });
+  assert(status === 400 && json.error);
+  */
+
+  // Test: invalid JSON
+  // You'd need to use a raw HTTP client for this, as fetch auto-serializes JSON.
 
   // Test: success (requires session mocking or real login)
-  // let { status, json } = await postUpload({ text_content: "Hello", user_ai_key: "sk-test-123" });
-  // assert(status === 200 && json.message);
+  /*
+  let { status, json } = await postUpload({ text_content: "Hello", user_ai_key: "sk-test-123" });
+  assert(status === 200 && json.message);
+  */
+
+  // Test: debug info included on error
+  /*
+  let { status, json } = await postUpload({ text_content: "", user_ai_key: "sk-test-123" });
+  assert(json.debug !== undefined);
+  */
 
   console.log("All upload API tests (basic) ran. Expand for full coverage!");
 })();

@@ -59,4 +59,31 @@ Deno.test("process-ai-analysis: debug field always present", async () => {
   assert(!JSON.stringify(data).includes("sk-test-123"));
 });
 
+// Edge case: invalid JSON
+Deno.test("process-ai-analysis: invalid JSON", async () => {
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{ not json }"
+  });
+  assertEquals(res.status, 400);
+  const data = await res.json();
+  assert(data.error);
+  assert(data.error.includes("Invalid JSON"));
+});
+
+// Edge case: valid user_id, raw_data_id but missing user_ai_key (should fallback or error)
+Deno.test("process-ai-analysis: missing user_ai_key", async () => {
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      raw_data_id: "someid",
+      user_id: "test-user"
+    }),
+  });
+  const data = await res.json();
+  assert("debug" in data || "error" in data);
+});
+
 // Add more tests with real data if possible!

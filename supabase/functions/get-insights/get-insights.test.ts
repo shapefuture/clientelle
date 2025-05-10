@@ -48,3 +48,22 @@ Deno.test("get-insights: valid minimal", async () => {
   assert("debug" in data);
   // No secrets or sensitive info should be present
 });
+
+// Edge case: GET with query params
+Deno.test("get-insights: GET with params", async () => {
+  const url = `${EDGE_URL}?user_id=test-user&view_type=list_quotes`;
+  const res = await fetch(url, { method: "GET" });
+  const data = await res.json();
+  assert("debug" in data || "error" in data);
+});
+
+// Security: ensure no user secrets are returned in debug/data
+Deno.test("get-insights: security - no secrets", async () => {
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: "test-user", view_type: "list_quotes" }),
+  });
+  const txt = await res.text();
+  assert(!txt.includes("sk-")); // Should never leak API keys
+});

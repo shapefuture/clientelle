@@ -58,3 +58,33 @@ Deno.test("upload-data: success, triggers process-ai-analysis", async () => {
   // Ensure user_ai_key is never present in response
   assert(!JSON.stringify(data).includes("sk-test-123"));
 });
+
+// Edge case: invalid JSON
+Deno.test("upload-data: invalid JSON", async () => {
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{ invalid json }"
+  });
+  assertEquals(res.status, 400);
+  const data = await res.json();
+  assert(data.error);
+  assert(data.error.includes("Invalid JSON"));
+});
+
+// Edge case: extra fields should not break function
+Deno.test("upload-data: ignores extra fields", async () => {
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text_content: "Extra fields test",
+      source_metadata: { user_id: "test-user" },
+      user_ai_key: "sk-test-123",
+      extra_param: "some-value"
+    })
+  });
+  const data = await res.json();
+  // Should succeed or at least not 500
+  assert(res.status === 200 || res.status === 400);
+});
