@@ -44,8 +44,15 @@ async function postUpload(body) {
 
 (async () => {
   // Test: missing authentication
-  let { status, json } = await postUpload({ text_content: "Test", user_ai_key: "sk-test-123" });
-  assert(status === 401 || json.error);
+  let res = await fetch(`${BASE}/upload`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text_content: "Test", user_ai_key: "sk-test-123" }),
+  });
+  assert(res.status === 401 || res.status === 200 || res.status === 400 || res.status === 500);
+  assert(res.headers.get("content-type")?.includes("application/json"));
+  let json = await res.json();
+  assert(res.status === 401 || json.error);
 
   // Test: missing text_content (simulate logged-in)
   // To fully test, mock authentication/session in your test environment.

@@ -46,6 +46,8 @@ Deno.test("upload-data: rejects missing text_content", async () => {
     body: JSON.stringify({ source_metadata: { user_id: "test-user" } }),
   });
   assertEquals(res.status, 400);
+  // Check Content-Type
+  assert(res.headers.get("content-type")?.includes("application/json"));
   const data = await res.json();
   assert(data.error);
 });

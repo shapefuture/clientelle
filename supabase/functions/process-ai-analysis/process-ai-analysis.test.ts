@@ -45,6 +45,8 @@ Deno.test("process-ai-analysis: rejects missing fields", async () => {
     body: JSON.stringify({}),
   });
   assertEquals(res.status, 400);
+  // Check Content-Type
+  assert(res.headers.get("content-type")?.includes("application/json"));
   const data = await res.json();
   assert(data.error);
 });

@@ -44,6 +44,8 @@ Deno.test("get-insights: missing user_id", async () => {
     body: JSON.stringify({ view_type: "list_quotes" }),
   });
   assertEquals(res.status, 400);
+  // Check Content-Type
+  assert(res.headers.get("content-type")?.includes("application/json"));
   const data = await res.json();
   assert(data.error);
   if (data.debug && typeof data.debug === "string") {
