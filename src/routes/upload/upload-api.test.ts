@@ -6,10 +6,27 @@
 // more scenarios and fixture-backed tests as needed.
 //
 // TODO:
+//
+// Security tests:
+// - Ensure no secrets (user_ai_key, etc) ever leak via frontend or error/debug fields.
+// - Add tests for CSRF and XSS in upload payloads.
+//
+// Permission/authorization tests:
+// - Uploads with no/mismatched session, or tampered user_id.
+//
+// Concurrency/stress tests:
+// - Simultaneous uploads, including with large payloads.
+//
+// Fuzz/property-based tests:
+// - Randomized and malformed payloads, unexpected types.
+//
+// Mock/stub setup:
 // - Add session/auth mocking (e.g., supertest with cookies, or patch safeGetSession).
 // - Add stubs/mocks for downstream fetch (Edge Function) calls.
-// - Add property-based/fuzz tests, rate limiting, and concurrent upload tests.
 // - Add test fixtures for DB state and repeatable login flows.
+//
+// Rate limiting & DOS:
+// - Add tests for frontend and backend rate limiting, and DOS protection.
 
 import { strict as assert } from 'assert';
 

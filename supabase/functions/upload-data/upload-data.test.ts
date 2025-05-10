@@ -6,10 +6,27 @@
 // Expand with more tests as needed for DB fixture setups or real user flows.
 //
 // TODO:
+//
+// Security tests:
+// - Ensure secrets (user_ai_key, etc) are never logged or returned, even on error.
+// - Add more tests for XSS, SQLi, and payload escaping.
+//
+// Permission/authorization tests:
+// - Simulate uploads with mismatched user_id/session (if possible).
+// - Add tests for RLS enforcement or permission failures.
+//
+// Concurrency/stress tests:
+// - High-frequency uploads, burst traffic, uploads with large payloads.
+//
+// Fuzz/property-based tests:
+// - Randomized JSON, deeply nested objects, strings with control chars, etc.
+//
+// Mock/stub setup:
 // - Add mocking/stubbing of process-ai-analysis for isolation (see Deno std/mock or similar).
-// - Add property-based/fuzz tests for unexpected input shapes.
-// - Add tests for rate limiting, DOS, and high concurrency scenarios.
 // - Add test fixtures for DB state if needed for repeatable integration tests.
+//
+// Rate limiting & DOS:
+// - Add tests for rate limiting, throttling, and DOS protection.
 
 import { assertEquals, assertObjectMatch, assert } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 

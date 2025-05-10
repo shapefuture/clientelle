@@ -5,9 +5,26 @@
 // Expand with more integration tests as needed, using test user_ids and DB fixtures.
 //
 // TODO:
+//
+// Security tests:
+// - Ensure no user secrets, tokens, or sensitive DB fields ever appear in debug/data.
+// - Test for SQL injection or filter argument attacks.
+//
+// Permission/authorization tests:
+// - Simulate queries for data not owned by user_id (RLS).
+//
+// Concurrency/stress tests:
+// - Multiple high-frequency queries, complex filters.
+//
+// Fuzz/property-based tests:
+// - Random filters, view_types, and malformed payloads.
+//
+// Mock/stub setup:
 // - Add stubs/mocks for DB queries (Deno std/mock or similar) for true isolation.
-// - Add property-based/fuzz tests for filter and view_type arguments.
-// - Add tests for rate limiting, DOS, and high concurrency.
+// - Add test fixtures and DB seeding for repeatable queries.
+//
+// Rate limiting & DOS:
+// - Test for query throttling and DOS protection.
 
 import { assertEquals, assertObjectMatch, assert } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 

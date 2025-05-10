@@ -6,9 +6,26 @@
 // Expand with DB fixtures for full integration coverage.
 //
 // TODO:
+//
+// Security tests:
+// - Ensure no secrets (user_ai_key, etc) ever appear in any output, even in debug/error fields.
+// - Add tests for prompt injection/XSS in LLM input/output.
+//
+// Permission/authorization tests:
+// - Simulate user_id mismatch, raw_data_id not owned by user.
+//
+// Concurrency/stress tests:
+// - Multiple simultaneous LLM calls, large batch processing.
+//
+// Fuzz/property-based tests:
+// - Random, deeply nested, or malformed LLM responses and POST bodies.
+//
+// Mock/stub setup:
 // - Add mocking/stubbing of litellm.completion and DB queried data for isolation.
-// - Add property-based/fuzz tests for extremely large or malformed model responses.
-// - Add tests for rate limiting, concurrency, and DOS protection.
+// - Add test fixtures for DB/LLM state as needed.
+//
+// Rate limiting & DOS:
+// - Test for excessive LLM calls, throttling, and timeout handling.
 
 import { assertEquals, assertObjectMatch, assert } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 
