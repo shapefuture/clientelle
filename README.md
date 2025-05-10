@@ -44,3 +44,12 @@ This project allows users to upload text data, use their **own AI API keys** to 
 
 - Register/login, upload text with your own AI API key, and view results on your dashboard.
 
+## Debugging & Troubleshooting
+
+- **Verbose logging** is implemented in all Supabase Edge Functions and backend endpoints (see source files).
+- **Error and debug outputs** are returned in API responses under a `debug` field (never containing secrets).
+- The SvelteKit frontend surfaces this debug info alongside errors in the UI for both uploads and insights.
+- To test error handling, submit bad/malformed payloads or force errors in the backend, and inspect the `debug` output in the UI or network responses.
+- All logs use clear tags (`[upload-data]`, `[process-ai-analysis]`, `[get-insights]`, `[upload-api]`) for easy filtering in console and server logs.
+- Do **not** enable detailed debug output in production for end-users, but it is invaluable for development, staging, and automated testing.
+
