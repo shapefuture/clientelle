@@ -2,7 +2,7 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js';
-import 'https://deno.land/x/dotenv@v3.2.2/load.ts'; // Для локального тестирования
+// NOTE: Do not import dotenv in deployed edge functions; environment variables are injected automatically.
 import { completion } from 'npm:litellm'; // Импортируем функцию completion из litellm
 
 // Получаем URL Supabase и наш Service Role Key
@@ -30,26 +30,40 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
    }
 
-  // Парсим тело запроса (ожидаем JSON с ID сырых данных и user_id)
-  const { raw_data_id, user_id } = await req.json();
+  // Parse POST body (expecting JSON with raw_data_id, user_id, and optional user_ai_key)
+  let body;
+  try {
+    body = await req.json();
+  } catch (err) {
+    // For verbose error logging in dev/staging. In prod, consider removing or restricting.
+    // Never log payload or secrets.
+    console.error('[process-ai-analysis] JSON parse error:', err);
+    return new Response(JSON.stringify({ error: 'Invalid JSON body', debug: err?.message }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+  const { raw_data_id, user_id, user_ai_key } = body;
 
-  // Проверяем наличие необходимых данных
   if (!raw_data_id || !user_id) {
-     return new Response(JSON.stringify({ error: 'raw_data_id and user_id are required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    console.error('[process-ai-analysis] Missing raw_data_id or user_id', { raw_data_id, user_id });
+    return new Response(JSON.stringify({ error: 'raw_data_id and user_id are required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
   try {
     // 1. Получаем сырой текст из таблицы raw_data по ID, используя Service Role Key
     // Использование Service Role Key позволяет обойти RLS, но все равно добавляем проверку user_id для безопасности
-    const { data: rawData, error: fetchError } = await supabase
-      .from('raw_data')
-      .select('content')
-      .eq('id', raw_data_id)
-      .eq('user_id', user_id) // Проверка, что данные принадлежат пользователю
-      .single(); // Ожидаем одну строку
-
-    if (fetchError || !rawData) {
-        throw new Error(fetchError?.message || `Raw data with ID ${raw_data_id} not found or does not belong to user ${user_id}`);
+    let rawData;
+    try {
+      const { data, error } = await supabase
+        .from('raw_data')
+        .select('content')
+        .eq('id', raw_data_id)
+        .eq('user_id', user_id)
+        .single();
+      if (error || !data) throw new Error(error?.message || `Raw data with ID ${raw_data_id} not found or does not belong to user ${user_id}`);
+      rawData = data;
+    } catch (err) {
+      // In production, consider stripping stack from public responses, but always keep for logs.
+      console.error('[process-ai-analysis] Failed to fetch raw_data:', err);
+      return new Response(JSON.stringify({ error: err?.message || String(err), debug: err?.stack }), { status: 404, headers: { 'Content-Type': 'application/json' } });
     }
 
     const text_content = rawData.content;
@@ -81,103 +95,247 @@ serve(async (req) => {
     `;
 
     try {
-      // Вызов Litellm completion
-      const chatCompletion = await completion({
-          model: usedModel, // Например, 'gpt-4o-mini' или 'gemini/gemini-pro'
-          messages: [
-              { role: 'system', content: system_prompt },
-              { role: 'user', content: user_prompt },
-          ],
-          // Дополнительные параметры, если нужны (температура, max_tokens, response_format и т.д.)
-           response_format: { type: "json_object" }, // Запрос JSON формата, если модель поддерживает
-      });
-
-      // litellm возвращает ответ в формате OpenAI Chat Completion
-      const rawLlMResponse = chatCompletion.choices[0].message.content;
-
-      if (!rawLlMResponse) {
-          throw new Error("LLM returned empty response.");
+      // Decide which API key to use for LLM
+      // Priority: user_ai_key (if present and non-empty), else openrouterApiKey, else geminiApiKey
+      let selectedApiKey = null;
+      let selectedProvider = null;
+      if (user_ai_key && typeof user_ai_key === 'string' && user_ai_key.trim().length > 0) {
+        selectedApiKey = user_ai_key;
+        selectedProvider = 'user';
+      } else if (openrouterApiKey) {
+        selectedApiKey = openrouterApiKey;
+        selectedProvider = 'openrouter';
+      } else if (geminiApiKey) {
+        selectedApiKey = geminiApiKey;
+        selectedProvider = 'gemini';
+      } else {
+        throw new Error('No valid API key available for LLM call.');
       }
 
-      // Парсим JSON ответ от LLM
-      const analysisResult = JSON.parse(rawLlMResponse);
+      // Prepare litellm config for user key
+      let litellmParams: any = {
+        model: usedModel,
+        messages: [
+          { role: 'system', content: system_prompt },
+          { role: 'user', content: user_prompt },
+        ],
+        response_format: { type: "json_object" },
+      };
+
+      // Add key to litellm's config as per model/provider
+      if (selectedProvider === 'user' || selectedProvider === 'openrouter' || selectedProvider === 'gemini') {
+        litellmParams['api_key'] = selectedApiKey;
+      }
+
+      // Call Litellm completion
+      let chatCompletion;
+      try {
+        chatCompletion = await completion(litellmParams);
+      } catch (llmApiErr) {
+        // Never log or expose user_ai_key or user content in logs!
+        console.error('[process-ai-analysis] LLM API error:', llmApiErr?.message, llmApiErr?.stack);
+        return new Response(JSON.stringify({ error: 'LLM API call failed', debug: llmApiErr?.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+
+      // litellm returns OpenAI Chat Completion format
+      const rawLlMResponse = chatCompletion.choices?.[0]?.message?.content;
+
+      if (!rawLlMResponse) {
+        console.error('[process-ai-analysis] LLM empty response');
+        return new Response(JSON.stringify({ error: "LLM returned empty response." }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+
+      // Parse LLM JSON
+      let analysisResult;
+      try {
+        analysisResult = JSON.parse(rawLlMResponse);
+      } catch (parseErr) {
+        // Safe to log parsing errors, but never the response content itself!
+        console.error('[process-ai-analysis] LLM JSON parse error:', parseErr?.message, parseErr?.stack);
+        return new Response(JSON.stringify({ error: "Failed to parse LLM JSON response", debug: parseErr?.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
 
       // 3. Сохраняем результаты анализа в базу данных, используя Supabase клиент с Service Role Key
       // Логика сохранения должна учитывать структуру вашего analysisResult и вставлять данные в соответствующие таблицы.
       // Это может быть сложная часть, требующая обработки возможных ошибок парсинга JSON и ошибок БД.
 
-      // Пример сохранения цитат:
+      // Save quotes and nodes, and map temporary LLM IDs to DB UUIDs for linking
+      let quoteTempIdToDbId: Record<string, string> = {};
+      let nodeTempIdToDbId: Record<string, string> = {};
+      // This object will be returned in API debug output, but contains only safe error/status strings.
+      let saveDebug = {};
+
+      // Save quotes
       if (analysisResult.quotes && Array.isArray(analysisResult.quotes)) {
-          const quotesToInsert = analysisResult.quotes.map((q: any) => ({
-             raw_data_id: raw_data_id, // Привязываем цитаты к источнику сырых данных
-             user_id: user_id, // Привязываем к пользователю
-             text: q.text,
-             start_char_index: q.start_index, // Если LLM смог извлечь индексы
-             end_char_index: q.end_index,
-             is_suggestion: true // Помечаем как AI-предложение
-          }));
-           // Используем upsert или insert с ignore/update на случай повторного анализа
-           const { error: insertQuotesError } = await supabase.from('quotes').insert(quotesToInsert, { onConflict: 'text, raw_data_id, user_id' }); // Пример onConflict
-           if (insertQuotesError) console.error('Error inserting quotes:', insertQuotesError);
+        const quotesToInsert = analysisResult.quotes.map((q: any) => ({
+          raw_data_id: raw_data_id,
+          user_id: user_id,
+          text: q.text,
+          start_char_index: q.start_index,
+          end_char_index: q.end_index,
+          is_suggestion: true
+        }));
+        try {
+          const { data: insertedQuotes, error: insertQuotesError } = await supabase
+            .from('quotes')
+            .insert(quotesToInsert)
+            .select();
+          if (insertQuotesError) throw insertQuotesError;
+          if (insertedQuotes) {
+            for (let i = 0; i < analysisResult.quotes.length; i++) {
+              const tempId = analysisResult.quotes[i].id ?? i;
+              quoteTempIdToDbId[tempId] = insertedQuotes[i].id;
+            }
+          }
+          saveDebug['quotes'] = 'success';
+        } catch (err) {
+          // Log error saving quotes, never log quote content.
+          saveDebug['quotes'] = err?.message;
+          console.error('[process-ai-analysis] Error inserting quotes:', err);
+        }
       }
 
-      // Пример сохранения узлов (Nodes):
+      // Save nodes
       if (analysisResult.nodes && Array.isArray(analysisResult.nodes)) {
-           // Если LLM предоставил временные ID для узлов в JSON, вам нужно будет сопоставить их с реальными ID после вставки.
-           // Простейший подход: просто вставлять узлы без учета временных ID и связей на этом шаге.
-           const nodesToInsert = analysisResult.nodes.map((n: any) => ({
-               user_id: user_id,
-               type: n.type, // 'pain', 'solution', 'theme', 'feature'
-               label: n.label,
-               description: n.description,
-               is_suggestion: true
-               // embedding будет добавлен позже отдельным процессом или в update
-           }));
+        const nodesToInsert = analysisResult.nodes.map((n: any) => ({
+          user_id: user_id,
+          type: n.type,
+          label: n.label,
+          description: n.description,
+          is_suggestion: true
+        }));
+        try {
+          const { data: insertedNodes, error: insertNodesError } = await supabase
+            .from('nodes')
+            .insert(nodesToInsert)
+            .select();
+          if (insertNodesError) throw insertNodesError;
+          if (insertedNodes) {
+            for (let i = 0; i < analysisResult.nodes.length; i++) {
+              const tempId = analysisResult.nodes[i].id ?? i;
+              nodeTempIdToDbId[tempId] = insertedNodes[i].id;
+            }
+          }
+          saveDebug['nodes'] = 'success';
+        } catch (err) {
+          // Log error saving nodes, never log node content.
+          saveDebug['nodes'] = err?.message;
+          console.error('[process-ai-analysis] Error inserting nodes:', err);
+        }
+      }
 
-           const { data: insertedNodes, error: insertNodesError } = await supabase.from('nodes').insert(nodesToInsert).select(); // select для получения реальных ID
-           if (insertNodesError) console.error('Error inserting nodes:', insertNodesError);
+      // Save edges
+      if (analysisResult.edges && Array.isArray(analysisResult.edges)) {
+        const edgesToInsert = analysisResult.edges
+          .map((e: any) => {
+            const fromNodeId = nodeTempIdToDbId[e.from_node_id];
+            const toNodeId = nodeTempIdToDbId[e.to_node_id];
+            if (!fromNodeId || !toNodeId) return null;
+            return {
+              user_id: user_id,
+              from_node_id: fromNodeId,
+              to_node_id: toNodeId,
+              type: e.type,
+              description: e.description,
+              is_suggestion: true
+            };
+          })
+          .filter(Boolean);
+        try {
+          if (edgesToInsert.length > 0) {
+            const { error: insertEdgesError } = await supabase
+              .from('edges')
+              .insert(edgesToInsert);
+            if (insertEdgesError) throw insertEdgesError;
+          }
+          saveDebug['edges'] = 'success';
+        } catch (err) {
+          // Log error saving edges, never log edge content.
+          saveDebug['edges'] = err?.message;
+          console.error('[process-ai-analysis] Error inserting edges:', err);
+        }
+      }
 
-           // Если нужно сохранить связи (edges) и связи цитат с узлами (quote_node_links),
-           // вам потребуется логика сопоставления временных ID из analysisResult
-           // с реальными ID, полученными после вставки insertedNodes и insertedQuotes.
-           // Это сложная логика, ее нужно тщательно продумать.
-           // Например, пройтись по analysisResult.edges, найти реальные ID для from_node_id и to_node_id
-           // среди insertedNodes (сопоставляя по type+label или временному ID, если LLM его вернул),
-           // и затем вставить связи в таблицу 'edges'. Аналогично для 'quote_node_links'.
-           // Для MVP можно пропустить сохранение edges и quote_node_links на этом шаге и создавать их вручную или в другом процессе.
+      // Save quote_node_links
+      if (analysisResult.quote_node_links && Array.isArray(analysisResult.quote_node_links)) {
+        const linksToInsert = analysisResult.quote_node_links
+          .map((l: any) => {
+            const dbQuoteId = quoteTempIdToDbId[l.quote_id];
+            const dbNodeId = nodeTempIdToDbId[l.node_id];
+            if (!dbQuoteId || !dbNodeId) return null;
+            return {
+              quote_id: dbQuoteId,
+              node_id: dbNodeId,
+              type: l.type,
+              user_id: user_id
+            };
+          })
+          .filter(Boolean);
+        try {
+          if (linksToInsert.length > 0) {
+            const { error: insertLinksError } = await supabase
+              .from('quote_node_links')
+              .insert(linksToInsert);
+            if (insertLinksError) throw insertLinksError;
+          }
+          saveDebug['quote_node_links'] = 'success';
+        } catch (err) {
+          // Log error saving quote-node links, never log content.
+          saveDebug['quote_node_links'] = err?.message;
+          console.error('[process-ai-analysis] Error inserting quote_node_links:', err);
+        }
       }
 
 
-      // 4. Обновляем запись в raw_data, помечая, что анализ завершен
-       const { error: updateRawDataError } = await supabase
-        .from('raw_data')
-        .update({ processed_at: new Date().toISOString() })
-        .eq('id', raw_data_id); // Обновляем запись по ID
-       if (updateRawDataError) console.error('Error updating raw_data processed status:', updateRawDataError);
+      // 4. Update raw_data with processed_at timestamp
+      try {
+        const { error: updateRawDataError } = await supabase
+          .from('raw_data')
+          .update({ processed_at: new Date().toISOString() })
+          .eq('id', raw_data_id);
+        if (updateRawDataError) {
+          // Only log error strings, never user content or IDs.
+          saveDebug['raw_data_update'] = updateRawDataError.message;
+          console.error('[process-ai-analysis] Error updating raw_data processed status:', updateRawDataError);
+        } else {
+          saveDebug['raw_data_update'] = 'success';
+        }
+      } catch (err) {
+        // Only log message, never log content.
+        saveDebug['raw_data_update'] = err?.message;
+        console.error('[process-ai-analysis] Exception updating raw_data:', err);
+      }
 
-
-      // 5. Возвращаем успешный ответ
-      return new Response(JSON.stringify({ message: 'Analysis completed and results saved.', raw_data_id: raw_data_id }), {
+      // 5. Detailed response for debugging and test automation
+      // The debug field includes only statuses and error messages, never user content or secrets.
+      return new Response(JSON.stringify({
+        message: 'Analysis completed and results saved.',
+        raw_data_id: raw_data_id,
+        debug: saveDebug
+      }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
 
     } catch (llmError: any) {
-        // Обработка ошибок при вызове или парсинге ответа LLM
-        console.error('Error during LLM analysis or parsing:', llmError.message);
-         // Можно записать статус ошибки в analysis_queue или raw_data
-        return new Response(JSON.stringify({ error: 'Analysis failed: ' + llmError.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        });
+      // Log only error and stack, never content or keys.
+      console.error('[process-ai-analysis] LLM or parsing error:', llmError?.message, llmError?.stack);
+      return new Response(JSON.stringify({ error: 'Analysis failed: ' + llmError?.message, debug: llmError?.stack }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
   } catch (error: any) {
-    // Общая обработка ошибок (например, при получении данных из БД)
-    console.error('Error in process-ai-analysis function:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    // For dev/stage log full stack, restrict or redact in production.
+    console.error('[process-ai-analysis] Fatal error:', error?.message, error?.stack);
+    return new Response(JSON.stringify({ error: error?.message, debug: error?.stack }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 });
+
+// For testing: Add integration tests that send requests to this function and verify robust error/debug info!
+// All debug fields and logs avoid user secrets or content; only error/status info is surfaced.
+// In production, review debug and error handling to avoid leaking sensitive backend details.

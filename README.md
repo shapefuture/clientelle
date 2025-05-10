@@ -1,113 +1,55 @@
-# sveltekit-supabase
+# SvelteKit + Supabase AI Insights Platform
 
-## Description
+This project allows users to upload text data, use their **own AI API keys** to run analysis via LLMs, and visualize structured insights, all while keeping their keys secure.
 
-A simple SvelteKit app that uses Supabase for authentication via GitHub authentication.
+## Core Features
 
-## Features
+- **User-provided AI API keys:** Users input their key for each upload; keys are never stored and are only sent to the backend for the current analysis request.
+- **Secure backend logic:** All AI LLM calls and key usage happen on the backend (Supabase Edge Functions). User keys are never logged, stored, or exposed.
+- **Supabase Postgres:** All insights, quotes, nodes, and links are securely stored, with Row Level Security (RLS) enabled.
+- **Frontend:** SvelteKit app with upload form, key entry, and dynamic display of analyzed insights.
 
-- Sign in with GitHub
-- Sign out
-- Display user information
-- Update user information
+## How It Works
 
-## Technologies
+1. **User logs in and goes to the upload form.**
+2. **User pastes text, optionally provides source info, and enters their AI API key.**
+3. **Upload is sent to the backend; the key is securely forwarded to the Edge Function.**
+4. **Edge Functions process the data via LLM, store structured results, and return status.**
+5. **User sees their insights in their dashboard.**
 
-- [SvelteKit](https://kit.svelte.dev/): A framework for building web applications with Svelte
-- [TypeScript](https://www.typescriptlang.org/): A typed superset of JavaScript that compiles to plain JavaScript
-- [Supabase](https://supabase.io/): An open-source Firebase alternative
-- [shadcn-svelte](https://shadcn-svelte.com): A Tailwind CSS component library for Svelte, based on [shadcn](https://shadcn.com)
-- [Tailwind CSS](https://tailwindcss.com/): A utility-first CSS framework
-- [Iconify](https://iconify.design): A unified icon framework using icons from [icones.js](https://icones.js.org/collection/all)
-- [Zod](https://zod.dev): A TypeScript-first schema declaration and validation library
+## Security Notes
 
-## Getting Started
+- **User API keys are never stored or logged.**
+- **All LLM requests occur server-side.**
+- **RLS ensures users only see their data.**
 
-### Running Locally
+## Local Development
 
-#### Prerequisites
+- Copy `.env.example` to `.env` and fill in your Supabase project details.
+- Run the SvelteKit dev server.
+- Use the Supabase CLI to deploy Edge Functions:  
+  ```
+  supabase functions deploy upload-data --no-verify-jwt
+  supabase functions deploy process-ai-analysis --no-verify-jwt
+  supabase functions deploy get-insights --no-verify-jwt
+  ```
+- Ensure your hosting is HTTPS for key security.
 
-- docker: https://docs.docker.com/desktop/insta...
-- supabase cli: https://supabase.com/docs/guides/cli/...
+## Deployment
 
-1. Clone the repo
+- Set environment variables (`PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, etc.) in your hosting platform.
+- Deploy Edge Functions and frontend as usual.
 
-```bash
-git clone https://github.com/engageintellect/sveltekit-supabase
-cd sveltekit-supabase
-```
+## Testing
 
-2. Install dependencies
+- Register/login, upload text with your own AI API key, and view results on your dashboard.
 
-```bash
-pnpm i
-```
+## Debugging & Troubleshooting
 
-3. Create a `.env.local` based on `.env.example` and fill in your own credentials
+- **Verbose logging** is implemented in all Supabase Edge Functions and backend endpoints (see source files).
+- **Error and debug outputs** are returned in API responses under a `debug` field (never containing secrets).
+- The SvelteKit frontend surfaces this debug info alongside errors in the UI for both uploads and insights.
+- To test error handling, submit bad/malformed payloads or force errors in the backend, and inspect the `debug` output in the UI or network responses.
+- All logs use clear tags (`[upload-data]`, `[process-ai-analysis]`, `[get-insights]`, `[upload-api]`) for easy filtering in console and server logs.
+- Do **not** enable detailed debug output in production for end-users, but it is invaluable for development, staging, and automated testing.
 
-```bash
-cp .env.example .env.local
-```
-
-4. Start your supabase server with
-
-```bash
-supabase start
-```
-
-**Note:** You need to have the [Supabase CLI](https://supabase.io/docs/guides/cli) installed to run the above command.
-
-5. Supabase console will be available at `http://localhost:54323`
-
-6. Start your app
-
-```bash
-pnpm run dev
-```
-
-7. Navigate to [localhost:5173](http://localhost:3000) to see your app running.
-
-### Deploying to Vercel
-
-The easiest way to deploy this app is to use Vercel. You can deploy this app with the following steps:
-
-### Database
-
-1. Create a new project in the Supabase dashboard
-
-2. Login to supabase using the console
-
-```bash
-supabase login
-```
-
-3. Link your project to the supabase cli
-
-```bash
-supabase link --project-ref <YOUR_PROJECT_ID>
-```
-
-4. Deploy your database
-
-```bash
-supabase db push
-```
-
-### Client
-
-1. Create a new project on Vercel
-2. Connect your GitHub repository
-3. Add a new github OAuth app in the Github developer settings
-4. Configure your environment variables, make sure you are using updated values from your newly-created Supabase project and Github OAuth app
-5. Deploy
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a PR or open an issue.
-
-## Thanks
-
-Shout out to [Davis Media](https://github.com/Davis-Media) for building the base template for this project! 🤙
-
-## Supabase Backend Setup
-Additional steps for database and backend function setup are described in [README.backend_setup.md](README.backend_setup.md).
