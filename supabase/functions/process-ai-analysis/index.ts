@@ -336,3 +336,5 @@ serve(async (req) => {
 });
 
 // For testing: Add integration tests that send requests to this function and verify robust error/debug info!
+// All debug fields and logs avoid user secrets or content; only error/status info is surfaced.
+// In production, review debug and error handling to avoid leaking sensitive backend details.

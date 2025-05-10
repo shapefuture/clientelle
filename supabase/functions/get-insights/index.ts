@@ -95,3 +95,5 @@ serve(async (req) => {
 });
 
 // For testing: Add integration tests to check retrieval, error, and debug outputs!
+// All debug fields in responses are safe (timing, view_type, target), but never include user data or queries.
+// In production, consider restricting or filtering logs further.

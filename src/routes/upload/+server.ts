@@ -91,3 +91,5 @@ export const POST = async ({ request, locals }) => {
   }
 };
 // For testing: Create integration tests that POST various payloads and check debug/error output!
+// All debug fields here are safe (timing, stack traces), never returning or logging secrets.
+// In production, limit or filter debug output and logs as needed.

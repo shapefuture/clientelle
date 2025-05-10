@@ -144,3 +144,6 @@ serve(async (req) => {
 });
 
 // For testing: Add unit/integration tests to verify upload, error, and analysis invocation paths!
+    // All debug outputs in this function are designed to be safe for frontend/testing, but review carefully before expanding.
+    // Never log or return user secrets, keys, or sensitive content in logs or responses.
+    // In production, consider toggling or filtering logDebug() output as appropriate.
