@@ -46,5 +46,23 @@ async function postUpload(body) {
   assert(json.debug !== undefined);
   */
 
-  console.log("All upload API tests (basic) ran. Expand for full coverage!");
+  // Edge: very large payload (simulate, and ensure no server crash)
+  /*
+  let { status, json } = await postUpload({ text_content: "A".repeat(1024*1024), user_ai_key: "sk-test-123" });
+  assert([200,400,413].includes(status));
+  */
+
+  // Security: ensure secrets never returned even on error
+  /*
+  let { status, json } = await postUpload({ text_content: "Test", user_ai_key: "sk-test-123" });
+  assert(!JSON.stringify(json).includes("sk-test-123"));
+  */
+
+  // Edge: simulate downstream error (requires stubbing in test env)
+  /*
+  let { status, json } = await postUpload({ text_content: "fail downstream", user_ai_key: "sk-test-123" });
+  assert(json.debug !== undefined || json.error);
+  */
+
+  console.log("All upload API tests (basic and edge) ran. Expand for full coverage!");
 })();

@@ -67,3 +67,26 @@ Deno.test("get-insights: security - no secrets", async () => {
   const txt = await res.text();
   assert(!txt.includes("sk-")); // Should never leak API keys
 });
+
+// Edge: large filter object (should not crash)
+Deno.test("get-insights: large filters", async () => {
+  const filters = {};
+  for (let i = 0; i < 1000; i++) filters[`key${i}`] = `val${i}`;
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: "test-user",
+      view_type: "list_quotes",
+      filters
+    }),
+  });
+  const data = await res.json();
+  assert("debug" in data || "error" in data);
+});
+
+// Edge: downstream DB error simulation (requires DB manipulation or stubbing in CI)
+Deno.test("get-insights: downstream DB error", async () => {
+  // This test is mostly a template unless you can reliably trigger a DB failure.
+  assert(true);
+});

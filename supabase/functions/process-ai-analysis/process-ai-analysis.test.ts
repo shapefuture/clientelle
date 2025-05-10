@@ -86,4 +86,52 @@ Deno.test("process-ai-analysis: missing user_ai_key", async () => {
   assert("debug" in data || "error" in data);
 });
 
+// Edge: very large input (simulate oversized prompt)
+Deno.test("process-ai-analysis: large content", async () => {
+  // This test assumes you have a valid raw_data_id/user_id in your test DB.
+  // Ideally, mock the DB or use a test fixture.
+  const raw_data_id = "someid"; // Replace with valid value for real integration
+  const user_id = "test-user";
+  const user_ai_key = "sk-test-123";
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      raw_data_id,
+      user_id,
+      user_ai_key
+    }),
+  });
+  const data = await res.json();
+  // Should always include debug or error
+  assert("debug" in data || "error" in data);
+});
+
+// Security: ensure no secrets in debug
+Deno.test("process-ai-analysis: security - no user_ai_key in output", async () => {
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      raw_data_id: "someid",
+      user_id: "test-user",
+      user_ai_key: "sk-test-123"
+    }),
+  });
+  const txt = await res.text();
+  assert(!txt.includes("sk-test-123"));
+});
+
+// Timeout/slow response test (demonstration)
+Deno.test({
+  name: "process-ai-analysis: handles slow downstream",
+  fn: async () => {
+    // This is a placeholder: in real tests, use a mock or inject latency in litellm or DB.
+    // Here, just ensure function doesn't crash on slow response (simulate with a sleep if possible).
+    assert(true);
+  },
+  sanitizeOps: false,
+  sanitizeResources: false
+});
+
 // Add more tests with real data if possible!

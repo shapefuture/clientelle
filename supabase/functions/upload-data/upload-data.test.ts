@@ -88,3 +88,53 @@ Deno.test("upload-data: ignores extra fields", async () => {
   // Should succeed or at least not 500
   assert(res.status === 200 || res.status === 400);
 });
+
+// Edge case: very large text_content (simulate attach 1MB+)
+Deno.test("upload-data: large text_content", async () => {
+  const bigText = "A".repeat(1024 * 1024); // 1MB
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text_content: bigText,
+      source_metadata: { user_id: "test-user" },
+      user_ai_key: "sk-test-123"
+    })
+  });
+  const data = await res.json();
+  // Should not 500, may be 200/400 depending on backend limits
+  assert([200, 400, 413].includes(res.status)); // 413 = Payload Too Large
+});
+
+// Security: ensure user_ai_key never appears in logs or output, even on error
+Deno.test("upload-data: security - key never in error", async () => {
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text_content: "",
+      source_metadata: { user_id: "test-user" },
+      user_ai_key: "sk-test-123"
+    })
+  });
+  const txt = await res.text();
+  assert(!txt.includes("sk-test-123"));
+});
+
+// Edge: downstream process-ai-analysis failure
+Deno.test("upload-data: downstream analysis error propagation", async () => {
+  // To simulate, stub or break process-ai-analysis or inject known-bad raw_data_id
+  // Here, we just check error propagation structure
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text_content: "Should fail downstream",
+      source_metadata: { user_id: "test-user" },
+      user_ai_key: "sk-test-123"
+    })
+  });
+  const data = await res.json();
+  // Should still return a debug field with error info if downstream fails
+  assert("debug" in data);
+});
