@@ -72,6 +72,7 @@ serve(async (req) => {
 
     if (fetchError) {
       // Log DB error for devs, but never include sensitive query info in production logs!
+      // Only log error details, not queries or payloads.
       console.error('[get-insights] DB fetch error:', fetchError);
       return new Response(JSON.stringify({ error: fetchError.message, debug: fetchError.details }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
@@ -84,7 +85,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    // For dev/stage, log error details and stack. In prod, consider filtering.
+    // For dev/stage, log error details and stack. In prod, consider filtering or redacting.
     console.error('[get-insights] Fatal error:', error?.message, error?.stack);
     return new Response(JSON.stringify({ error: error?.message, debug: error?.stack }), {
       status: 500,

@@ -161,6 +161,7 @@ serve(async (req) => {
       // Save quotes and nodes, and map temporary LLM IDs to DB UUIDs for linking
       let quoteTempIdToDbId: Record<string, string> = {};
       let nodeTempIdToDbId: Record<string, string> = {};
+      // This object will be returned in API debug output, but contains only safe error/status strings.
       let saveDebug = {};
 
       // Save quotes
@@ -187,6 +188,7 @@ serve(async (req) => {
           }
           saveDebug['quotes'] = 'success';
         } catch (err) {
+          // Log error saving quotes, never log quote content.
           saveDebug['quotes'] = err?.message;
           console.error('[process-ai-analysis] Error inserting quotes:', err);
         }
@@ -215,6 +217,7 @@ serve(async (req) => {
           }
           saveDebug['nodes'] = 'success';
         } catch (err) {
+          // Log error saving nodes, never log node content.
           saveDebug['nodes'] = err?.message;
           console.error('[process-ai-analysis] Error inserting nodes:', err);
         }
@@ -246,6 +249,7 @@ serve(async (req) => {
           }
           saveDebug['edges'] = 'success';
         } catch (err) {
+          // Log error saving edges, never log edge content.
           saveDebug['edges'] = err?.message;
           console.error('[process-ai-analysis] Error inserting edges:', err);
         }
@@ -275,6 +279,7 @@ serve(async (req) => {
           }
           saveDebug['quote_node_links'] = 'success';
         } catch (err) {
+          // Log error saving quote-node links, never log content.
           saveDebug['quote_node_links'] = err?.message;
           console.error('[process-ai-analysis] Error inserting quote_node_links:', err);
         }
@@ -288,12 +293,14 @@ serve(async (req) => {
           .update({ processed_at: new Date().toISOString() })
           .eq('id', raw_data_id);
         if (updateRawDataError) {
+          // Only log error strings, never user content or IDs.
           saveDebug['raw_data_update'] = updateRawDataError.message;
           console.error('[process-ai-analysis] Error updating raw_data processed status:', updateRawDataError);
         } else {
           saveDebug['raw_data_update'] = 'success';
         }
       } catch (err) {
+        // Only log message, never log content.
         saveDebug['raw_data_update'] = err?.message;
         console.error('[process-ai-analysis] Exception updating raw_data:', err);
       }
@@ -310,6 +317,7 @@ serve(async (req) => {
       });
 
     } catch (llmError: any) {
+      // Log only error and stack, never content or keys.
       console.error('[process-ai-analysis] LLM or parsing error:', llmError?.message, llmError?.stack);
       return new Response(JSON.stringify({ error: 'Analysis failed: ' + llmError?.message, debug: llmError?.stack }), {
         status: 500,
@@ -318,6 +326,7 @@ serve(async (req) => {
     }
 
   } catch (error: any) {
+    // For dev/stage log full stack, restrict or redact in production.
     console.error('[process-ai-analysis] Fatal error:', error?.message, error?.stack);
     return new Response(JSON.stringify({ error: error?.message, debug: error?.stack }), {
       status: 500,

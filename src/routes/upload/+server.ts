@@ -55,33 +55,37 @@ export const POST = async ({ request, locals }) => {
         body: JSON.stringify({
           text_content,
           source_metadata,
-          user_ai_key
+          user_ai_key // never log this value anywhere!
         })
       });
       try {
         edgeData = await edgeRes.json();
       } catch (err) {
+        // Only log error details, never raw response that could contain sensitive info.
         logDebug('Edge function invalid response', err);
         edgeError = 'Invalid response from backend';
       }
       if (!edgeRes.ok) {
+        // Only log safe error string, never log full backend payload in production.
         logDebug('Edge function error', edgeData?.error || edgeError);
         return json({ error: edgeData?.error || edgeError || 'Failed to upload data', debug: edgeData }, { status: 500 });
       }
     } catch (err) {
+      // Only log safe error string, never log full request or sensitive data.
       logDebug('Edge function fetch error', err);
       return json({ error: 'Failed to call backend', debug: err?.message }, { status: 500 });
     }
 
     logDebug('Upload complete', { user_id, elapsed_ms: Date.now() - startTime });
     // The debug field here is for timing/performance and never contains secrets.
+    // If adding more info, ensure it is not sensitive before returning to client.
     return json({
       message: 'Upload successful',
       ...edgeData,
       debug: { elapsed_ms: Date.now() - startTime }
     });
   } catch (e: any) {
-    // For dev/stage, expose stack in debug. For prod, consider stripping.
+    // For dev/stage, expose stack in debug. For prod, consider stripping or removing.
     logDebug('Fatal error', { error: e?.message, stack: e?.stack });
     return json({ error: e?.message || 'Unknown error', debug: e?.stack }, { status: 500 });
   }

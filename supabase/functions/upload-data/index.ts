@@ -74,6 +74,7 @@ serve(async (req) => {
 
     if (sourceError) throw sourceError;
     source = sourceData;
+    // Log only database-generated ID or meta, never user content.
     logDebug('Source inserted', source?.id);
 
     // 2. Save text
@@ -90,13 +91,14 @@ serve(async (req) => {
     // If error, log details for debugging (never log sensitive user content)
     if (rawDataError) throw rawDataError;
     rawData = rawDataData;
+    // As above, only log database IDs or meta.
     logDebug('Raw data inserted', rawData?.id);
 
     // 3. Trigger analysis
     let analysisInvokeResult = null;
     let analysisInvokeError = null;
     try {
-      // Never log or expose user_ai_key or other secrets!
+      // Never log or expose user_ai_key or any secrets!
       const { data, error } = await supabase.functions.invoke('process-ai-analysis', {
         body: {
           raw_data_id: rawData.id,
@@ -106,9 +108,10 @@ serve(async (req) => {
       });
       analysisInvokeResult = data;
       analysisInvokeError = error;
-      if (error) logDebug('Invoke error', error); // Safe to log error message only
+      // Only log error messages (never any part of user_ai_key or request body)
+      if (error) logDebug('Invoke error', error);
     } catch (invokeErr) {
-      // Log stack for debugging in dev/stage. Remove or guard in prod.
+      // Log stack for debugging in dev/stage. Remove or restrict for production!
       logDebug('Invoke exception', { message: invokeErr?.message, stack: invokeErr?.stack });
       analysisInvokeError = invokeErr?.message || 'Unknown invocation error';
     }
@@ -131,7 +134,8 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    logDebug('Fatal error', { message: error?.message, stack: error?.stack }); // Remove or guard in production
+    // For dev/stage, log error details. In prod, restrict or disable as appropriate.
+    logDebug('Fatal error', { message: error?.message, stack: error?.stack });
     return new Response(JSON.stringify({ error: error?.message || "Unknown error", debug: error?.stack }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
