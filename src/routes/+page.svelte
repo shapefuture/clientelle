@@ -92,6 +92,30 @@
 			<div class="mt-3 text-green-600 font-semibold">{uploadSuccessMsg}</div>
 		{/if}
 	</div>
+
+	<!-- Insights Display -->
+	<div class="mt-12 mx-auto max-w-xl bg-gray-50 rounded-lg shadow p-6">
+		<h2 class="text-xl font-semibold mb-3">Your Uploaded Quotes / Insights</h2>
+		{#if data.insightsError}
+			<div class="text-red-600 font-semibold mb-3">{data.insightsError}</div>
+		{:else if data.insights && data.insights.length > 0}
+			<ul>
+				{#each data.insights as quote}
+					<li class="mb-4 p-3 border-b">
+						<div class="font-semibold">"{quote.text}"</div>
+						{#if quote.raw_data?.sources?.metadata?.url}
+							<div class="text-xs text-gray-500">Source: <a href={quote.raw_data.sources.metadata.url} target="_blank" class="underline text-blue-600">{quote.raw_data.sources.metadata.url}</a></div>
+						{/if}
+						{#if quote.sentiment}
+							<div class="text-xs mt-1">Sentiment: {quote.sentiment}</div>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<div class="text-gray-500">No insights found yet. Upload some text to get started.</div>
+		{/if}
+	</div>
 {:else}
 	<Hero />
 {/if}
