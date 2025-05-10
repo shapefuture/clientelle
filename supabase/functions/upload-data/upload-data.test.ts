@@ -83,7 +83,7 @@ Deno.test("upload-data: success, triggers process-ai-analysis", async () => {
   assert(!JSON.stringify(data).includes("sk-test-123"));
 });
 
-// Edge case: invalid JSON
+// Edge case: invalid JSON (should include error and possibly debug.stack)
 Deno.test("upload-data: invalid JSON", async () => {
   const res = await fetch(EDGE_URL, {
     method: "POST",
@@ -94,6 +94,9 @@ Deno.test("upload-data: invalid JSON", async () => {
   const data = await res.json();
   assert(data.error);
   assert(data.error.includes("Invalid JSON"));
+  if (data.debug && typeof data.debug === "string") {
+    assert(data.debug.length > 0);
+  }
 });
 
 // Edge case: extra fields should not break function

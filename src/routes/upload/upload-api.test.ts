@@ -54,8 +54,20 @@ async function postUpload(body) {
   assert(status === 400 && json.error);
   */
 
-  // Test: invalid JSON
-  // You'd need to use a raw HTTP client for this, as fetch auto-serializes JSON.
+  // Test: invalid JSON (should include error and possibly debug.stack)
+  /*
+  // Use a raw HTTP client or node's http.request to send invalid JSON
+  const res = await fetch(`${BASE}/upload`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{ invalid json }"
+  });
+  const json = await res.json();
+  assert(json.error);
+  if (json.debug && typeof json.debug === "string") {
+    assert(json.debug.length > 0);
+  }
+  */
 
   // Test: success (requires session mocking or real login)
   /*

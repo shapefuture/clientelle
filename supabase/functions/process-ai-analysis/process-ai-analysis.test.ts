@@ -86,7 +86,7 @@ Deno.test("process-ai-analysis: debug field always present", async () => {
   assert(!JSON.stringify(data).includes("sk-test-123"));
 });
 
-// Edge case: invalid JSON
+// Edge case: invalid JSON (should include error and possibly debug.stack)
 Deno.test("process-ai-analysis: invalid JSON", async () => {
   const res = await fetch(EDGE_URL, {
     method: "POST",
@@ -97,6 +97,9 @@ Deno.test("process-ai-analysis: invalid JSON", async () => {
   const data = await res.json();
   assert(data.error);
   assert(data.error.includes("Invalid JSON"));
+  if (data.debug && typeof data.debug === "string") {
+    assert(data.debug.length > 0);
+  }
 });
 
 // Edge case: valid user_id, raw_data_id but missing user_ai_key (should fallback or error)

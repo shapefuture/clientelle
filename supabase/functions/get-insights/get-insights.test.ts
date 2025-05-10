@@ -46,6 +46,9 @@ Deno.test("get-insights: missing user_id", async () => {
   assertEquals(res.status, 400);
   const data = await res.json();
   assert(data.error);
+  if (data.debug && typeof data.debug === "string") {
+    assert(data.debug.length > 0);
+  }
 });
 
 Deno.test("get-insights: invalid view_type", async () => {
