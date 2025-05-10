@@ -13,11 +13,16 @@ export const POST = async ({ request, locals }) => {
     const user_id = user.id;
 
     // Parse request body from frontend
-    const body = await request.json();
-    const { text_content, source_type, source_url, user_ai_key } = body;
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    const { text_content, source_type, source_url, user_ai_key } = body || {};
 
-    if (!text_content || !user_ai_key) {
-      return json({ error: 'Missing required fields' }, { status: 400 });
+    if (!text_content) {
+      return json({ error: 'Missing required text_content' }, { status: 400 });
     }
 
     // Build source metadata
@@ -40,7 +45,12 @@ export const POST = async ({ request, locals }) => {
       })
     });
 
-    const edgeData = await edgeRes.json();
+    let edgeData;
+    try {
+      edgeData = await edgeRes.json();
+    } catch {
+      return json({ error: 'Invalid response from backend' }, { status: 502 });
+    }
     if (!edgeRes.ok) {
       return json({ error: edgeData?.error || 'Failed to upload data' }, { status: 500 });
     }
