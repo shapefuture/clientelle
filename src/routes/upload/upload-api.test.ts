@@ -87,15 +87,17 @@ async function postUpload(body) {
   assert(json.debug !== undefined || json.error);
   */
 
-  // Concurrency: multiple uploads
+  // Concurrency/stress test: burst of uploads in parallel
   /*
-  const bodies = Array.from({ length: 3 }).map((_, i) => ({
-    text_content: `Concurrent ${i}`,
+  const burst = 6;
+  const bodies = Array.from({ length: burst }).map((_, i) => ({
+    text_content: Math.random() > 0.2 ? `Concurrent ${i}` : undefined,
     user_ai_key: "sk-test-123"
   }));
   const results = await Promise.all(bodies.map(postUpload));
   for (const { status, json } of results) {
     assert(json.debug !== undefined || json.error);
+    assert(!JSON.stringify(json).includes("sk-test-123"));
   }
   */
 

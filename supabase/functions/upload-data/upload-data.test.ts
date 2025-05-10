@@ -171,23 +171,32 @@ Deno.test("upload-data: downstream analysis error propagation", async () => {
   assert("debug" in data);
 });
 
-// Concurrency test: multiple uploads in parallel
-Deno.test("upload-data: concurrency", async () => {
-  const requests = Array.from({ length: 5 }).map((_, i) =>
-    fetch(EDGE_URL, {
+// Concurrency/stress test: burst of randomized uploads in parallel
+Deno.test("upload-data: burst concurrency stress test", async () => {
+  const burst = 8;
+  const requests = Array.from({ length: burst }).map((_, i) => {
+    const payload: any = {
+      text_content: `Concurrent upload ${i}`,
+      source_metadata: { user_id: `test-user` },
+      user_ai_key: "sk-test-123"
+    };
+    // Randomly corrupt some payloads to simulate user errors
+    if (Math.random() < 0.3) delete payload.text_content;
+    if (Math.random() < 0.2) payload.source_metadata = "bad";
+    return fetch(EDGE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text_content: `Concurrent upload ${i}`,
-        source_metadata: { user_id: `test-user` },
-        user_ai_key: "sk-test-123"
-      })
-    })
-  );
+      body: JSON.stringify(payload)
+    });
+  });
   const results = await Promise.all(requests);
   for (const res of results) {
-    const data = await res.json();
+    const txt = await res.text();
+    assert(txt.startsWith("{"));
+    const data = JSON.parse(txt);
+    // Accept error or debug, but should not 500 unless truly broken input
     assert("debug" in data || "error" in data);
+    assert(!txt.includes("sk-test-123")); // never leak secrets
   }
 });
 

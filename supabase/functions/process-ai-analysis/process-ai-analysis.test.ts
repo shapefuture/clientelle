@@ -169,24 +169,30 @@ Deno.test({
   sanitizeResources: false
 });
 
-// Concurrency test: multiple process requests in parallel
-Deno.test("process-ai-analysis: concurrency", async () => {
-  const payload = {
-    raw_data_id: "someid",
-    user_id: "test-user",
-    user_ai_key: "sk-test-123"
-  };
-  const requests = Array.from({ length: 3 }).map(() =>
-    fetch(EDGE_URL, {
+// Concurrency/stress test: burst of randomized analysis requests in parallel
+Deno.test("process-ai-analysis: burst concurrency stress test", async () => {
+  const burst = 6;
+  const requests = Array.from({ length: burst }).map((_, i) => {
+    const payload: any = {
+      raw_data_id: Math.random() > 0.7 ? "someid" : `random-${i}`,
+      user_id: Math.random() > 0.5 ? "test-user" : `random-user-${i}`,
+      user_ai_key: "sk-test-123"
+    };
+    if (Math.random() < 0.2) delete payload.raw_data_id;
+    if (Math.random() < 0.2) delete payload.user_id;
+    return fetch(EDGE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
-    })
-  );
+    });
+  });
   const results = await Promise.all(requests);
   for (const res of results) {
-    const data = await res.json();
+    const txt = await res.text();
+    assert(txt.startsWith("{"));
+    const data = JSON.parse(txt);
     assert("debug" in data || "error" in data);
+    assert(!txt.includes("sk-test-123"));
   }
 });
 

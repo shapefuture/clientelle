@@ -122,22 +122,27 @@ Deno.test("get-insights: large filters", async () => {
   assert("debug" in data || "error" in data);
 });
 
-// Concurrency test: multiple get-insights requests
-Deno.test("get-insights: concurrency", async () => {
-  const payload = {
-    user_id: "test-user",
-    view_type: "list_quotes"
-  };
-  const requests = Array.from({ length: 3 }).map(() =>
-    fetch(EDGE_URL, {
+// Concurrency/stress test: burst of randomized insight queries in parallel
+Deno.test("get-insights: burst concurrency stress test", async () => {
+  const burst = 7;
+  const requests = Array.from({ length: burst }).map((_, i) => {
+    const payload: any = {
+      user_id: Math.random() > 0.5 ? "test-user" : `other-user-${i}`,
+      view_type: Math.random() > 0.5 ? "list_quotes" : "list_nodes"
+    };
+    if (Math.random() < 0.3) payload.filters = { fuzz: Math.random() };
+    if (Math.random() < 0.2) delete payload.user_id;
+    return fetch(EDGE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
-    })
-  );
+    });
+  });
   const results = await Promise.all(requests);
   for (const res of results) {
-    const data = await res.json();
+    const txt = await res.text();
+    assert(txt.startsWith("{"));
+    const data = JSON.parse(txt);
     assert("debug" in data || "error" in data);
   }
 });
