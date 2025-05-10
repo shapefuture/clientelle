@@ -115,13 +115,8 @@ serve(async (req) => {
       };
 
       // Add key to litellm's config as per model/provider
-      if (selectedProvider === 'user' || selectedProvider === 'openrouter') {
+      if (selectedProvider === 'user' || selectedProvider === 'openrouter' || selectedProvider === 'gemini') {
         litellmParams['api_key'] = selectedApiKey;
-        // Optionally: set api_base if using a custom endpoint
-        // litellmParams['api_base'] = "https://openrouter.ai/api/v1" (if needed)
-      } else if (selectedProvider === 'gemini') {
-        litellmParams['api_key'] = selectedApiKey;
-        // litellm will handle Gemini model as per its own docs
       }
 
       // Call Litellm completion
