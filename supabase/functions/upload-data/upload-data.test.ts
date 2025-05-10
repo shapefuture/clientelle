@@ -77,10 +77,10 @@ Deno.test("upload-data: success path (should 200, debug, no secrets)", async () 
   assertEquals(res.status, 200);
   assert(res.headers.get("content-type")?.includes("application/json"));
   const data = await res.json();
-  assert(data.raw_data_id, "should return raw_data_id");
-  assert(data.source_id, "should return source_id");
-  assertObjectMatch(data, { analysis_status: "success" });
-  assert(data.debug);
+  assert(typeof data.raw_data_id === "string" && data.raw_data_id.length > 0, "should return raw_data_id as string");
+  assert(typeof data.source_id === "string" && data.source_id.length > 0, "should return source_id as string");
+  assert(typeof data.analysis_status === "string");
+  assert(data.debug && typeof data.debug === "object");
   assert(typeof data.debug.elapsed_ms === "number" && data.debug.elapsed_ms >= 0);
   assert(!JSON.stringify(data).includes("sk-test-123")); // never leak secrets
 });

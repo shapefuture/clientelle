@@ -138,6 +138,11 @@ Deno.test("process-ai-analysis: happy path (should 200, debug, no secrets)", asy
   assert([200,404,500].includes(res.status));
   assert(res.headers.get("content-type")?.includes("application/json"));
   const data = await res.json();
+  // Should always have debug or error, and if success, message and raw_data_id
+  if (data.message && data.raw_data_id) {
+    assert(typeof data.message === "string");
+    assert(typeof data.raw_data_id === "string");
+  }
   assert("debug" in data || "error" in data);
   assert(!JSON.stringify(data).includes("sk-test-123"));
 });

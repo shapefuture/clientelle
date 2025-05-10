@@ -76,6 +76,12 @@ Deno.test("get-insights: happy path (should 200, debug, no secrets)", async () =
   assert("debug" in data);
   assert(typeof data.debug.elapsed_ms === "number" && data.debug.elapsed_ms >= 0);
   assert(data.debug.view_type === "list_quotes");
+  // Main data payload shape:
+  assert("data" in data);
+  // If present, data.data is array or null
+  if (data.data !== undefined && data.data !== null) {
+    assert(Array.isArray(data.data) || typeof data.data === "object");
+  }
   assert(!JSON.stringify(data).includes("sk-")); // should never leak secrets
 });
 
