@@ -157,22 +157,27 @@ Deno.test("upload-data: security - key never in error", async () => {
   assert(!txt2.includes("sk-test-123"));
 });
 
-// Edge: downstream process-ai-analysis failure
+// Edge: downstream process-ai-analysis failure, error propagation test
 Deno.test("upload-data: downstream analysis error propagation", async () => {
-  // To simulate, stub or break process-ai-analysis or inject known-bad raw_data_id
-  // Here, we just check error propagation structure
+  // To simulate, stub or break process-ai-analysis or inject a payload that will cause it to fail
+  // Here, intentionally send a text_content that will create a bad raw_data record or a bogus user_id
   const res = await fetch(EDGE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text_content: "Should fail downstream",
-      source_metadata: { user_id: "test-user" },
+      text_content: "error downstream " + Math.random(),
+      source_metadata: { user_id: "fail-user" }, // unlikely user_id
       user_ai_key: "sk-test-123"
     })
   });
   const data = await res.json();
   // Should still return a debug field with error info if downstream fails
   assert("debug" in data);
+  // Should surface downstream error string, but never secrets
+  if (data.debug && typeof data.debug.analysis_invoke_error === "string") {
+    assert(!data.debug.analysis_invoke_error.includes("sk-test-123"));
+    assert(data.debug.analysis_invoke_error.length > 0);
+  }
 });
 
 // Concurrency/stress test: burst of randomized uploads in parallel

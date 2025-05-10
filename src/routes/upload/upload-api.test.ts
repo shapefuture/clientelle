@@ -98,8 +98,14 @@ async function postUpload(body) {
 
   // Edge: simulate downstream error (requires stubbing in test env)
   /*
+  // To fully test, you would stub the Edge Function response to return an error, or set up a payload that triggers a downstream error.
   let { status, json } = await postUpload({ text_content: "fail downstream", user_ai_key: "sk-test-123" });
   assert(json.debug !== undefined || json.error);
+  // If debug.analysis_invoke_error present, should not have secrets and should be a string
+  if (json.debug && typeof json.debug.analysis_invoke_error === "string") {
+    assert(!json.debug.analysis_invoke_error.includes("sk-test-123"));
+    assert(json.debug.analysis_invoke_error.length > 0);
+  }
   */
 
   // Concurrency/stress test: burst of uploads in parallel
