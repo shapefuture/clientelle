@@ -16,7 +16,8 @@ const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
 serve(async (req) => {
   const startTime = Date.now();
   if (req.method !== 'GET' && req.method !== 'POST') {
-    // For debugging: log bad method calls. Remove or conditionally enable in prod.
+    // For debugging: log bad method calls. In prod, consider removing or restricting.
+    // Never log request body or any sensitive data.
     console.log('[get-insights] Invalid method:', req.method);
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
