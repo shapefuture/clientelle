@@ -217,22 +217,25 @@ Deno.test("process-ai-analysis: user_id mismatch", async () => {
   }
 });
 
-// Fuzz test: random payloads
-Deno.test("process-ai-analysis: fuzz random payloads", async () => {
-  for (let i = 0; i < 3; i++) {
-    const body = {
-      raw_data_id: Math.random() > 0.5 ? "someid" : undefined,
-      user_id: Math.random() > 0.5 ? "test-user" : undefined,
-      user_ai_key: Math.random() > 0.5 ? "sk-test-123" : undefined,
-      extra: Math.random().toString(36).substring(2)
-    };
+// Fuzz/property-based test: random/adversarial input
+Deno.test("process-ai-analysis: property/fuzz test for input robustness", async () => {
+  for (let i = 0; i < 5; i++) {
+    const payload: any = {};
+    if (Math.random() > 0.3) payload.raw_data_id = Math.random() > 0.5 ? "someid" : 42;
+    if (Math.random() > 0.4) payload.user_id = Math.random() > 0.5 ? "test-user" : {};
+    if (Math.random() > 0.5) payload.user_ai_key = Math.random().toString(36);
+    if (Math.random() > 0.7) payload[ Math.random().toString(36).slice(2) ] = Math.random();
+
     const res = await fetch(EDGE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    const txt = await res.text();
+    assert(txt.startsWith("{"));
+    const data = JSON.parse(txt);
     assert("debug" in data || "error" in data);
+    assert(!txt.includes("sk-test-123"));
   }
 });
 

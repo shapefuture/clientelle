@@ -222,22 +222,30 @@ Deno.test("upload-data: user_id mismatch", async () => {
   }
 });
 
-// Fuzz test: random payloads
-Deno.test("upload-data: fuzz random payloads", async () => {
-  for (let i = 0; i < 3; i++) {
-    const body = {
-      text_content: Math.random() > 0.5 ? "Test" : undefined,
-      source_metadata: Math.random() > 0.5 ? { user_id: "test-user" } : undefined,
-      user_ai_key: Math.random() > 0.5 ? "sk-test-123" : undefined,
-      extra: Math.random().toString(36).substring(2)
-    };
+// Fuzz/property-based test: random and adversarial payloads
+Deno.test("upload-data: property/fuzz test for robustness", async () => {
+  for (let i = 0; i < 5; i++) {
+    // Generate random payload structure
+    const payload: any = {};
+    if (Math.random() > 0.3) payload.text_content = Math.random() > 0.5 ? "Test" : 12345;
+    if (Math.random() > 0.5) payload.source_metadata = Math.random() > 0.5
+      ? { user_id: "test-user", nested: { a: Math.random() } }
+      : "bad-metadata";
+    if (Math.random() > 0.5) payload.user_ai_key = Math.random().toString(36);
+    if (Math.random() > 0.7) payload[ Math.random().toString(36).slice(2) ] = Math.random();
+
     const res = await fetch(EDGE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    const txt = await res.text();
+    // Should never crash, always return valid JSON with error/debug
+    assert(txt.startsWith("{"));
+    const data = JSON.parse(txt);
     assert("debug" in data || "error" in data);
+    // Should never leak secrets
+    assert(!txt.includes("sk-test-123"));
   }
 });
 

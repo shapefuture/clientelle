@@ -166,21 +166,29 @@ Deno.test("get-insights: user_id mismatch", async () => {
   }
 });
 
-// Fuzz test: random payloads
-Deno.test("get-insights: fuzz random payloads", async () => {
-  for (let i = 0; i < 3; i++) {
-    const body = {
-      user_id: Math.random() > 0.5 ? "test-user" : undefined,
-      view_type: Math.random() > 0.5 ? "list_quotes" : undefined,
-      filters: Math.random() > 0.5 ? { fuzz: Math.random() } : undefined,
-      extra: Math.random().toString(36).substring(2)
+// Fuzz/property-based test: random/nested filters
+Deno.test("get-insights: property/fuzz test for filters and args", async () => {
+  for (let i = 0; i < 5; i++) {
+    const payload: any = {
+      user_id: Math.random() > 0.5 ? "test-user" : Math.random().toString(36),
+      view_type: Math.random() > 0.5 ? "list_quotes" : (Math.random() > 0.5 ? "list_nodes" : undefined),
     };
+    if (Math.random() > 0.3) {
+      payload.filters = {
+        fuzz: Math.random(),
+        deep: { a: [1,2,3, { b: Math.random() }], c: { d: Math.random() } }
+      };
+    }
+    if (Math.random() > 0.7) payload[ Math.random().toString(36).slice(2) ] = Math.random();
+
     const res = await fetch(EDGE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    const txt = await res.text();
+    assert(txt.startsWith("{"));
+    const data = JSON.parse(txt);
     assert("debug" in data || "error" in data);
   }
 });

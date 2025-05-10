@@ -110,7 +110,17 @@ async function postUpload(body) {
   assert(status === 401 || json.error || json.debug !== undefined);
   */
 
-  // Fuzz test: random payloads (see above for pattern)
+  // Fuzz/property-based test: random/adversarial payloads
+  /*
+  for (let i = 0; i < 5; i++) {
+    const body: any = {};
+    if (Math.random() > 0.4) body.text_content = Math.random() > 0.5 ? "Test" : 12345;
+    if (Math.random() > 0.5) body.user_ai_key = Math.random().toString(36);
+    if (Math.random() > 0.7) body[ Math.random().toString(36).slice(2) ] = Math.random();
+    let { status, json } = await postUpload(body);
+    assert(json.debug !== undefined || json.error);
+  }
+  */
 
   // Security: XSS in text_content must never be echoed back
   /*
