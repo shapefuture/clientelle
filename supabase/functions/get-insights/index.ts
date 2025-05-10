@@ -76,6 +76,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: fetchError.message, debug: fetchError.details }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
+    // The debug field is safe for frontend and testing (contains only view_type, target, timing).
     const elapsed = Date.now() - startTime;
     return new Response(JSON.stringify({ data, debug: { ...debug, elapsed_ms: elapsed } }), {
       status: 200,

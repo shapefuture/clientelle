@@ -299,6 +299,7 @@ serve(async (req) => {
       }
 
       // 5. Detailed response for debugging and test automation
+      // The debug field includes only statuses and error messages, never user content or secrets.
       return new Response(JSON.stringify({
         message: 'Analysis completed and results saved.',
         raw_data_id: raw_data_id,

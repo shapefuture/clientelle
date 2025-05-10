@@ -113,7 +113,8 @@ serve(async (req) => {
       analysisInvokeError = invokeErr?.message || 'Unknown invocation error';
     }
 
-    // 4. Structured response for easier testing
+    // 4. Structured response for easier testing and frontend debugging
+    // 'debug' field is safe because it contains only timings or error messages (never secrets)
     const elapsed = Date.now() - startTime;
     return new Response(JSON.stringify({
       message: 'Data uploaded and analysis function invoked',

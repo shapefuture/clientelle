@@ -74,12 +74,14 @@ export const POST = async ({ request, locals }) => {
     }
 
     logDebug('Upload complete', { user_id, elapsed_ms: Date.now() - startTime });
+    // The debug field here is for timing/performance and never contains secrets.
     return json({
       message: 'Upload successful',
       ...edgeData,
       debug: { elapsed_ms: Date.now() - startTime }
     });
   } catch (e: any) {
+    // For dev/stage, expose stack in debug. For prod, consider stripping.
     logDebug('Fatal error', { error: e?.message, stack: e?.stack });
     return json({ error: e?.message || 'Unknown error', debug: e?.stack }, { status: 500 });
   }
