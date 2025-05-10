@@ -60,6 +60,7 @@ serve(async (req) => {
       if (error || !data) throw new Error(error?.message || `Raw data with ID ${raw_data_id} not found or does not belong to user ${user_id}`);
       rawData = data;
     } catch (err) {
+      // In production, consider stripping stack from public responses, but always keep for logs.
       console.error('[process-ai-analysis] Failed to fetch raw_data:', err);
       return new Response(JSON.stringify({ error: err?.message || String(err), debug: err?.stack }), { status: 404, headers: { 'Content-Type': 'application/json' } });
     }
@@ -130,6 +131,7 @@ serve(async (req) => {
       try {
         chatCompletion = await completion(litellmParams);
       } catch (llmApiErr) {
+        // Never log or expose user_ai_key or user content in logs!
         console.error('[process-ai-analysis] LLM API error:', llmApiErr?.message, llmApiErr?.stack);
         return new Response(JSON.stringify({ error: 'LLM API call failed', debug: llmApiErr?.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
       }
@@ -147,6 +149,7 @@ serve(async (req) => {
       try {
         analysisResult = JSON.parse(rawLlMResponse);
       } catch (parseErr) {
+        // Safe to log parsing errors, but never the response content itself!
         console.error('[process-ai-analysis] LLM JSON parse error:', parseErr?.message, parseErr?.stack);
         return new Response(JSON.stringify({ error: "Failed to parse LLM JSON response", debug: parseErr?.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
       }

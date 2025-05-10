@@ -87,6 +87,7 @@ serve(async (req) => {
       .select()
       .single();
 
+    // If error, log details for debugging (never log sensitive user content)
     if (rawDataError) throw rawDataError;
     rawData = rawDataData;
     logDebug('Raw data inserted', rawData?.id);
@@ -95,17 +96,19 @@ serve(async (req) => {
     let analysisInvokeResult = null;
     let analysisInvokeError = null;
     try {
+      // Never log or expose user_ai_key or other secrets!
       const { data, error } = await supabase.functions.invoke('process-ai-analysis', {
         body: {
           raw_data_id: rawData.id,
           user_id: user_id,
-          user_ai_key: user_ai_key // never log!
+          user_ai_key: user_ai_key // never log or expose this!
         }
       });
       analysisInvokeResult = data;
       analysisInvokeError = error;
-      if (error) logDebug('Invoke error', error);
+      if (error) logDebug('Invoke error', error); // Safe to log error message only
     } catch (invokeErr) {
+      // Log stack for debugging in dev/stage. Remove or guard in prod.
       logDebug('Invoke exception', { message: invokeErr?.message, stack: invokeErr?.stack });
       analysisInvokeError = invokeErr?.message || 'Unknown invocation error';
     }
@@ -127,7 +130,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    logDebug('Fatal error', { message: error?.message, stack: error?.stack });
+    logDebug('Fatal error', { message: error?.message, stack: error?.stack }); // Remove or guard in production
     return new Response(JSON.stringify({ error: error?.message || "Unknown error", debug: error?.stack }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

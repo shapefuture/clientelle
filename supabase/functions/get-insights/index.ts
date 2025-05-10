@@ -37,6 +37,7 @@ serve(async (req) => {
 
   try {
     let query, debug = { view_type };
+    // Each branch logs what target is being queried for debugging.
     if (view_type === 'list_quotes') {
       query = supabase
         .from('quotes')
@@ -62,12 +63,15 @@ serve(async (req) => {
         .eq('user_id', user_id);
       debug.target = 'ideas';
     } else {
+      // Log and return error for unknown view_type
+      console.log('[get-insights] Invalid view_type:', view_type);
       return new Response(JSON.stringify({ error: 'Invalid or missing view_type' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
     const { data, error: fetchError } = await query;
 
     if (fetchError) {
+      // Log DB error for devs, but never include sensitive query info in production logs!
       console.error('[get-insights] DB fetch error:', fetchError);
       return new Response(JSON.stringify({ error: fetchError.message, debug: fetchError.details }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
@@ -79,6 +83,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
+    // For dev/stage, log error details and stack. In prod, consider filtering.
     console.error('[get-insights] Fatal error:', error?.message, error?.stack);
     return new Response(JSON.stringify({ error: error?.message, debug: error?.stack }), {
       status: 500,

@@ -4,7 +4,9 @@ import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 // Utility for debug logs (disable in production as needed)
 function logDebug(context: string, payload: unknown) {
-  // For development/staging debugging only. Remove or guard for production.
+  // For development/staging debugging only.
+  // In production, you may want to disable or restrict these logs:
+  // if (process.env.NODE_ENV === 'production') return;
   console.log(`[upload-api] ${context}:`, payload);
 }
 
