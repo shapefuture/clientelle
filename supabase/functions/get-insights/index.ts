@@ -2,7 +2,6 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js';
-// NOTE: Do not import dotenv in deployed edge functions; environment variables are injected automatically.
 
 // Получаем URL Supabase и Anon Key (публичный ключ)
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -26,14 +25,9 @@ serve(async (req) => {
 
    const { user_id, view_type, source_id, node_id, filters } = params;
 
-   // Проверяем наличие user_id (критично для RLS)
+   // Require user_id for security
    if (!user_id) {
-       // Хотя RLS должен отфильтровать по auth.uid(), явная передача и проверка user_id
-       // может быть полезна или необходима, в зависимости от реализации.
-       // Если вы полагаетесь ТОЛЬКО на RLS, этот check может быть опционален,
-       // но RLS должен быть настроен так, чтобы auth.uid() правильно определялся из JWT запроса.
-        console.warn("User ID not provided in get-insights request.");
-       // Для безопасности в реальном приложении, возможно, стоит вернуть ошибку или требовать JWT защиту функции.
+       return new Response(JSON.stringify({ error: 'user_id is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
    }
 
 
