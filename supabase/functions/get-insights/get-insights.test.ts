@@ -68,6 +68,9 @@ Deno.test("get-insights: valid minimal", async () => {
   // Acceptable statuses: 200 if data, 500 if DB misconfigured
   const data = await res.json();
   assert("debug" in data);
+  // Debug should include elapsed_ms and view_type
+  assert(typeof data.debug.elapsed_ms === "number" && data.debug.elapsed_ms >= 0);
+  assert(data.debug.view_type === "list_quotes");
   // No secrets or sensitive info should be present
 });
 

@@ -77,6 +77,11 @@ Deno.test("process-ai-analysis: debug field always present", async () => {
   });
   const data = await res.json();
   assert("debug" in data);
+  // If debug is a timing object, it should have elapsed_ms or stack/message
+  if (typeof data.debug === "object" && data.debug !== null) {
+    const keys = Object.keys(data.debug);
+    assert(keys.length > 0);
+  }
   // Ensure user_ai_key is never leaked
   assert(!JSON.stringify(data).includes("sk-test-123"));
 });

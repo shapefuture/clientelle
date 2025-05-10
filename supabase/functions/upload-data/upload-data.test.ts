@@ -78,6 +78,7 @@ Deno.test("upload-data: success, triggers process-ai-analysis", async () => {
   assert(data.source_id, "should return source_id");
   assertObjectMatch(data, { analysis_status: "success" });
   assert(data.debug); // debug info should always be present
+  assert(typeof data.debug.elapsed_ms === "number" && data.debug.elapsed_ms >= 0);
   // Ensure user_ai_key is never present in response
   assert(!JSON.stringify(data).includes("sk-test-123"));
 });
