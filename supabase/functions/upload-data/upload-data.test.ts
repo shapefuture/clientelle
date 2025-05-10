@@ -1,5 +1,9 @@
 // Deno test suite for upload-data Edge Function
 // Run with: deno test --allow-net upload-data.test.ts
+// 
+// These tests cover basic validation, method rejection, and happy path. In CI or production,
+// mock/stub downstream calls (e.g., process-ai-analysis) to avoid triggering real LLM costs or side effects.
+// Expand with more tests as needed for DB fixture setups or real user flows.
 
 import { assertEquals, assertObjectMatch, assert } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 

@@ -1,5 +1,9 @@
 // Example test for the SvelteKit upload API endpoint
 // You can run this using node, or a tool like supertest/jest, or plain fetch with node-fetch
+//
+// These tests assume you have a running dev server. For full integration testing, consider mocking
+// authentication/session and downstream Edge Function calls to avoid real side effects. Expand with
+// more scenarios and fixture-backed tests as needed.
 
 import { strict as assert } from 'assert';
 

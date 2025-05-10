@@ -1,5 +1,9 @@
 // Deno test suite for process-ai-analysis Edge Function
 // Run with: deno test --allow-net process-ai-analysis.test.ts
+//
+// These tests check method rejection, input validation, and debug info. For real LLM calls,
+// use test API keys and/or mock litellm if possible to avoid unnecessary cost and side effects.
+// Expand with DB fixtures for full integration coverage.
 
 import { assertEquals, assertObjectMatch, assert } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 

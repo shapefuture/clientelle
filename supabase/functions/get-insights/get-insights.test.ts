@@ -1,5 +1,8 @@
 // Deno test suite for get-insights Edge Function
 // Run with: deno test --allow-net get-insights.test.ts
+//
+// These tests focus on input validation, method rejection, and debug output.
+// Expand with more integration tests as needed, using test user_ids and DB fixtures.
 
 import { assertEquals, assertObjectMatch, assert } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 
