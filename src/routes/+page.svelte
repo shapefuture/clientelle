@@ -19,12 +19,14 @@
 	let uploadStatus: 'idle' | 'loading' | 'success' | 'error' = 'idle';
 	let uploadError = '';
 	let uploadSuccessMsg = '';
-	
+	let uploadDebug: any = null;
+
 	async function handleUpload(event: Event) {
 		event.preventDefault();
 		uploadStatus = 'loading';
 		uploadError = '';
 		uploadSuccessMsg = '';
+		uploadDebug = null;
 		try {
 			const res = await fetch('/upload', {
 				method: 'POST',
@@ -40,10 +42,14 @@
 			});
 			const result = await res.json();
 			if (!res.ok) {
-				throw new Error(result?.error || 'Upload failed');
+				uploadStatus = 'error';
+				uploadError = result?.error || 'Upload failed';
+				uploadDebug = result?.debug;
+				return;
 			}
 			uploadStatus = 'success';
 			uploadSuccessMsg = 'Upload successful! Your data is being processed.';
+			uploadDebug = result?.debug;
 			textContent = '';
 			sourceUrl = '';
 			userAiKey = '';
@@ -87,9 +93,15 @@
 		</form>
 		{#if uploadStatus === 'error'}
 			<div class="mt-3 text-red-600 font-semibold">{uploadError}</div>
+			{#if uploadDebug}
+				<pre class="bg-red-50 text-xs mt-2 p-2 rounded">{JSON.stringify(uploadDebug, null, 2)}</pre>
+			{/if}
 		{/if}
 		{#if uploadStatus === 'success'}
 			<div class="mt-3 text-green-600 font-semibold">{uploadSuccessMsg}</div>
+			{#if uploadDebug}
+				<pre class="bg-green-50 text-xs mt-2 p-2 rounded">{JSON.stringify(uploadDebug, null, 2)}</pre>
+			{/if}
 		{/if}
 	</div>
 
@@ -98,9 +110,12 @@
 		<h2 class="text-xl font-semibold mb-3">Your Uploaded Quotes / Insights</h2>
 		{#if data.insightsError}
 			<div class="text-red-600 font-semibold mb-3">{data.insightsError}</div>
-		{:else if data.insights && data.insights.length > 0}
+			{#if data?.insights?.debug}
+				<pre class="bg-red-50 text-xs mt-2 p-2 rounded">{JSON.stringify(data.insights.debug, null, 2)}</pre>
+			{/if}
+		{:else if data.insights && (data.insights.data ? data.insights.data.length > 0 : data.insights.length > 0)}
 			<ul>
-				{#each data.insights as quote}
+				{#each (data.insights.data || data.insights) as quote}
 					<li class="mb-4 p-3 border-b">
 						<div class="font-semibold">"{quote.text}"</div>
 						{#if quote.raw_data?.sources?.metadata?.url}
@@ -112,6 +127,9 @@
 					</li>
 				{/each}
 			</ul>
+			{#if data.insights?.debug}
+				<pre class="bg-gray-100 text-xs mt-4 p-2 rounded">{JSON.stringify(data.insights.debug, null, 2)}</pre>
+			{/if}
 		{:else}
 			<div class="text-gray-500">No insights found yet. Upload some text to get started.</div>
 		{/if}
