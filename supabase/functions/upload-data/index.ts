@@ -23,8 +23,10 @@ const supabase = createClient(supabaseUrl!, serviceRoleKey!, {
 });
 
 function logDebug(context: string, info: unknown) {
-  // Use this for verbose debugging in dev; redact secrets if ever logging request bodies!
-  // Deno.env.get('NODE_ENV') === 'production' && ... to disable in prod if needed
+  // Use this for verbose debugging in development and staging.
+  // Never log secrets (like user_ai_key). 
+  // For production, you may want to disable these logs:
+  // if (Deno.env.get('NODE_ENV') === 'production') return;
   console.log(`[upload-data] ${context}:`, info);
 }
 

@@ -35,6 +35,7 @@ serve(async (req) => {
   try {
     body = await req.json();
   } catch (err) {
+    // For verbose error logging in dev/staging, comment out in production if desired.
     console.error('[process-ai-analysis] JSON parse error:', err);
     return new Response(JSON.stringify({ error: 'Invalid JSON body', debug: err?.message }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
