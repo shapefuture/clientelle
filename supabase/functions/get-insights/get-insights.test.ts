@@ -79,8 +79,9 @@ Deno.test("get-insights: GET with params", async () => {
   assert("debug" in data || "error" in data);
 });
 
-// Security: ensure no user secrets are returned in debug/data
+// Security: ensure no user secrets are returned in debug/data, even with malicious inputs
 Deno.test("get-insights: security - no secrets", async () => {
+  // Normal call
   const res = await fetch(EDGE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -88,6 +89,20 @@ Deno.test("get-insights: security - no secrets", async () => {
   });
   const txt = await res.text();
   assert(!txt.includes("sk-")); // Should never leak API keys
+
+  // SQL injection attempt in filter
+  const res2 = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: "test-user",
+      view_type: "list_quotes'; DROP TABLE users;--",
+      filters: { "malicious": "'; DROP TABLE users;--" }
+    }),
+  });
+  const txt2 = await res2.text();
+  assert(!txt2.includes("sk-"));
+  assert(!txt2.toLowerCase().includes("drop table"));
 });
 
 // Edge: large filter object (should not crash)

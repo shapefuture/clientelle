@@ -112,5 +112,11 @@ async function postUpload(body) {
 
   // Fuzz test: random payloads (see above for pattern)
 
+  // Security: XSS in text_content must never be echoed back
+  /*
+  let { status, json } = await postUpload({ text_content: "<script>alert(1)</script>", user_ai_key: "sk-test-123" });
+  assert(!JSON.stringify(json).includes("<script>"));
+  */
+
   console.log("All upload API tests (basic, edge, concurrency) ran. Expand for full coverage!");
 })();

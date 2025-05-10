@@ -129,7 +129,7 @@ Deno.test("process-ai-analysis: large content", async () => {
   assert("debug" in data || "error" in data);
 });
 
-// Security: ensure no secrets in debug
+// Security: ensure no secrets in debug, even when error occurs
 Deno.test("process-ai-analysis: security - no user_ai_key in output", async () => {
   const res = await fetch(EDGE_URL, {
     method: "POST",
@@ -142,6 +142,19 @@ Deno.test("process-ai-analysis: security - no user_ai_key in output", async () =
   });
   const txt = await res.text();
   assert(!txt.includes("sk-test-123"));
+
+  // Test again with forced error (missing field)
+  const res2 = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      raw_data_id: "",
+      user_id: "",
+      user_ai_key: "sk-test-123"
+    }),
+  });
+  const txt2 = await res2.text();
+  assert(!txt2.includes("sk-test-123"));
 });
 
 // Timeout/slow response test (demonstration)

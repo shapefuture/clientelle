@@ -142,6 +142,15 @@ Deno.test("upload-data: security - key never in error", async () => {
   });
   const txt = await res.text();
   assert(!txt.includes("sk-test-123"));
+
+  // Test again with a forced error (bad JSON)
+  const res2 = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{ bad: json,"
+  });
+  const txt2 = await res2.text();
+  assert(!txt2.includes("sk-test-123"));
 });
 
 // Edge: downstream process-ai-analysis failure
