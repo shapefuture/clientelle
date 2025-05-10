@@ -4,6 +4,12 @@
 // These tests cover basic validation, method rejection, and happy path. In CI or production,
 // mock/stub downstream calls (e.g., process-ai-analysis) to avoid triggering real LLM costs or side effects.
 // Expand with more tests as needed for DB fixture setups or real user flows.
+//
+// TODO:
+// - Add mocking/stubbing of process-ai-analysis for isolation (see Deno std/mock or similar).
+// - Add property-based/fuzz tests for unexpected input shapes.
+// - Add tests for rate limiting, DOS, and high concurrency scenarios.
+// - Add test fixtures for DB state if needed for repeatable integration tests.
 
 import { assertEquals, assertObjectMatch, assert } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 

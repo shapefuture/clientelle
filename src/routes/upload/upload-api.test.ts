@@ -4,6 +4,12 @@
 // These tests assume you have a running dev server. For full integration testing, consider mocking
 // authentication/session and downstream Edge Function calls to avoid real side effects. Expand with
 // more scenarios and fixture-backed tests as needed.
+//
+// TODO:
+// - Add session/auth mocking (e.g., supertest with cookies, or patch safeGetSession).
+// - Add stubs/mocks for downstream fetch (Edge Function) calls.
+// - Add property-based/fuzz tests, rate limiting, and concurrent upload tests.
+// - Add test fixtures for DB state and repeatable login flows.
 
 import { strict as assert } from 'assert';
 

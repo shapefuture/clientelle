@@ -3,6 +3,11 @@
 //
 // These tests focus on input validation, method rejection, and debug output.
 // Expand with more integration tests as needed, using test user_ids and DB fixtures.
+//
+// TODO:
+// - Add stubs/mocks for DB queries (Deno std/mock or similar) for true isolation.
+// - Add property-based/fuzz tests for filter and view_type arguments.
+// - Add tests for rate limiting, DOS, and high concurrency.
 
 import { assertEquals, assertObjectMatch, assert } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 

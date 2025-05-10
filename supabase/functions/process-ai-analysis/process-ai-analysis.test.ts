@@ -4,6 +4,11 @@
 // These tests check method rejection, input validation, and debug info. For real LLM calls,
 // use test API keys and/or mock litellm if possible to avoid unnecessary cost and side effects.
 // Expand with DB fixtures for full integration coverage.
+//
+// TODO:
+// - Add mocking/stubbing of litellm.completion and DB queried data for isolation.
+// - Add property-based/fuzz tests for extremely large or malformed model responses.
+// - Add tests for rate limiting, concurrency, and DOS protection.
 
 import { assertEquals, assertObjectMatch, assert } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 
