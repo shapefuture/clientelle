@@ -63,10 +63,13 @@ async function postUpload(body) {
   assert(status === 200 && json.message);
   */
 
-  // Test: debug info included on error
+  // Test: debug info included on error (should include timing/elapsed_ms)
   /*
   let { status, json } = await postUpload({ text_content: "", user_ai_key: "sk-test-123" });
   assert(json.debug !== undefined);
+  if (json.debug && typeof json.debug.elapsed_ms === "number") {
+    assert(json.debug.elapsed_ms >= 0);
+  }
   */
 
   // Edge: very large payload (simulate, and ensure no server crash)
