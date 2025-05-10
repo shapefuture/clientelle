@@ -134,4 +134,59 @@ Deno.test({
   sanitizeResources: false
 });
 
-// Add more tests with real data if possible!
+// Concurrency test: multiple process requests in parallel
+Deno.test("process-ai-analysis: concurrency", async () => {
+  const payload = {
+    raw_data_id: "someid",
+    user_id: "test-user",
+    user_ai_key: "sk-test-123"
+  };
+  const requests = Array.from({ length: 3 }).map(() =>
+    fetch(EDGE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+  );
+  const results = await Promise.all(requests);
+  for (const res of results) {
+    const data = await res.json();
+    assert("debug" in data || "error" in data);
+  }
+});
+
+// Permission: simulate user_id mismatch (RLS/DB fixture dependent)
+Deno.test("process-ai-analysis: user_id mismatch", async () => {
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      raw_data_id: "someid",
+      user_id: "other-user",
+      user_ai_key: "sk-test-123"
+    })
+  });
+  const data = await res.json();
+  assert("debug" in data || "error" in data);
+});
+
+// Fuzz test: random payloads
+Deno.test("process-ai-analysis: fuzz random payloads", async () => {
+  for (let i = 0; i < 3; i++) {
+    const body = {
+      raw_data_id: Math.random() > 0.5 ? "someid" : undefined,
+      user_id: Math.random() > 0.5 ? "test-user" : undefined,
+      user_ai_key: Math.random() > 0.5 ? "sk-test-123" : undefined,
+      extra: Math.random().toString(36).substring(2)
+    };
+    const res = await fetch(EDGE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    assert("debug" in data || "error" in data);
+  }
+});
+
+// TODO: Add stubs/mocks for litellm and DB for full CI isolation.

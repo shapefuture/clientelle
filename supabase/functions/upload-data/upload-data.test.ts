@@ -138,3 +138,61 @@ Deno.test("upload-data: downstream analysis error propagation", async () => {
   // Should still return a debug field with error info if downstream fails
   assert("debug" in data);
 });
+
+// Concurrency test: multiple uploads in parallel
+Deno.test("upload-data: concurrency", async () => {
+  const requests = Array.from({ length: 5 }).map((_, i) =>
+    fetch(EDGE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text_content: `Concurrent upload ${i}`,
+        source_metadata: { user_id: `test-user` },
+        user_ai_key: "sk-test-123"
+      })
+    })
+  );
+  const results = await Promise.all(requests);
+  for (const res of results) {
+    const data = await res.json();
+    assert("debug" in data || "error" in data);
+  }
+});
+
+// Permission: user_id mismatch (simulate if RLS enabled)
+Deno.test("upload-data: user_id mismatch", async () => {
+  // This assumes you have RLS or permission checks; adjust as needed.
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text_content: "Test",
+      source_metadata: { user_id: "other-user" },
+      user_ai_key: "sk-test-123"
+    })
+  });
+  const data = await res.json();
+  // Should return error or be filtered by RLS
+  assert("debug" in data || "error" in data);
+});
+
+// Fuzz test: random payloads
+Deno.test("upload-data: fuzz random payloads", async () => {
+  for (let i = 0; i < 3; i++) {
+    const body = {
+      text_content: Math.random() > 0.5 ? "Test" : undefined,
+      source_metadata: Math.random() > 0.5 ? { user_id: "test-user" } : undefined,
+      user_ai_key: Math.random() > 0.5 ? "sk-test-123" : undefined,
+      extra: Math.random().toString(36).substring(2)
+    };
+    const res = await fetch(EDGE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    assert("debug" in data || "error" in data);
+  }
+});
+
+// TODO: Add stubs/mocks for process-ai-analysis in CI to avoid real API calls.

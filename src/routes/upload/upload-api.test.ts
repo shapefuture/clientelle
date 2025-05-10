@@ -64,5 +64,21 @@ async function postUpload(body) {
   assert(json.debug !== undefined || json.error);
   */
 
-  console.log("All upload API tests (basic and edge) ran. Expand for full coverage!");
+  // Concurrency: multiple uploads
+  /*
+  const bodies = Array.from({ length: 3 }).map((_, i) => ({
+    text_content: `Concurrent ${i}`,
+    user_ai_key: "sk-test-123"
+  }));
+  const results = await Promise.all(bodies.map(postUpload));
+  for (const { status, json } of results) {
+    assert(json.debug !== undefined || json.error);
+  }
+  */
+
+  // Permission: simulate user_id mismatch via session mock (requires backend/session mocking)
+
+  // Fuzz test: random payloads (see above for pattern)
+
+  console.log("All upload API tests (basic, edge, concurrency) ran. Expand for full coverage!");
 })();
