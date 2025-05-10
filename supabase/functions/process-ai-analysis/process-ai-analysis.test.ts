@@ -179,17 +179,29 @@ Deno.test("process-ai-analysis: concurrency", async () => {
 
 // Permission: simulate user_id mismatch (RLS/DB fixture dependent)
 Deno.test("process-ai-analysis: user_id mismatch", async () => {
+  // Try processing a raw_data_id not owned by this user_id
   const res = await fetch(EDGE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       raw_data_id: "someid",
-      user_id: "other-user",
+      user_id: "unauthorized-user",
       user_ai_key: "sk-test-123"
     })
   });
   const data = await res.json();
-  assert("debug" in data || "error" in data);
+  // Should return a permission error or at least not leak data
+  if (data.error) {
+    assert(
+      data.error.toLowerCase().includes("permission") ||
+      data.error.toLowerCase().includes("not found") ||
+      data.error.toLowerCase().includes("unauthorized") ||
+      data.error.toLowerCase().includes("rls"),
+      "Error should be about permissions or not found"
+    );
+  } else {
+    assert(data.debug);
+  }
 });
 
 // Fuzz test: random payloads

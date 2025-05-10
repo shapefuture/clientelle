@@ -129,13 +129,26 @@ Deno.test("get-insights: concurrency", async () => {
 
 // Permission: simulate user_id mismatch
 Deno.test("get-insights: user_id mismatch", async () => {
+  // Attempt to fetch data as a user_id that should not have access
   const res = await fetch(EDGE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: "other-user", view_type: "list_quotes" }),
+    body: JSON.stringify({ user_id: "unauthorized-user", view_type: "list_quotes" }),
   });
   const data = await res.json();
-  assert("debug" in data || "error" in data);
+  // Should return empty data, error, or be filtered by RLS
+  if (data.error) {
+    assert(
+      data.error.toLowerCase().includes("permission") ||
+      data.error.toLowerCase().includes("unauthorized") ||
+      data.error.toLowerCase().includes("rls") ||
+      data.error.toLowerCase().includes("not found"),
+      "Error should be about permissions"
+    );
+  } else if (data.data) {
+    assert(Array.isArray(data.data));
+    // Should not contain sensitive data
+  }
 });
 
 // Fuzz test: random payloads

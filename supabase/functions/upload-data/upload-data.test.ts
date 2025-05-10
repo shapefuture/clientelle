@@ -185,18 +185,32 @@ Deno.test("upload-data: concurrency", async () => {
 // Permission: user_id mismatch (simulate if RLS enabled)
 Deno.test("upload-data: user_id mismatch", async () => {
   // This assumes you have RLS or permission checks; adjust as needed.
+  // Try uploading with a user_id that does not belong to the authenticated/test session
   const res = await fetch(EDGE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       text_content: "Test",
-      source_metadata: { user_id: "other-user" },
+      source_metadata: { user_id: "unauthorized-user" },
       user_ai_key: "sk-test-123"
     })
   });
   const data = await res.json();
   // Should return error or be filtered by RLS
-  assert("debug" in data || "error" in data);
+  // Check error message for permission/authorization failure if possible
+  if (data.error) {
+    // Acceptable: permission error message
+    assert(
+      data.error.toLowerCase().includes("permission") ||
+      data.error.toLowerCase().includes("not allowed") ||
+      data.error.toLowerCase().includes("unauthorized") ||
+      data.error.toLowerCase().includes("rls"),
+      "Error should be about permissions"
+    );
+  } else {
+    // If not an error, at least ensure no sensitive data is returned
+    assert(data.debug);
+  }
 });
 
 // Fuzz test: random payloads

@@ -100,6 +100,15 @@ async function postUpload(body) {
   */
 
   // Permission: simulate user_id mismatch via session mock (requires backend/session mocking)
+  /*
+  // Pseudocode: you need to mock or patch safeGetSession to return a different user_id than in the POST body
+  let { status, json } = await postUpload({
+    text_content: "Test",
+    user_ai_key: "sk-test-123",
+    // ...simulate session user_id = "user1", but post with user_id = "user2"
+  });
+  assert(status === 401 || json.error || json.debug !== undefined);
+  */
 
   // Fuzz test: random payloads (see above for pattern)
 
