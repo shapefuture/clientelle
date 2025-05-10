@@ -156,6 +156,16 @@ async function postUpload(body) {
   }
   */
 
+  // Idempotency/duplicate: uploading same payload twice should not error or duplicate
+  /*
+  let payload = { text_content: "Idem test", user_ai_key: "sk-test-123" };
+  let res1 = await postUpload(payload);
+  let res2 = await postUpload(payload);
+  assert(res1.status === 200 || res1.status === 400 || res1.status === 500);
+  assert(res2.status === 200 || res2.status === 400 || res2.status === 500);
+  assert(res2.json.debug !== undefined || res2.json.error);
+  */
+
   // Security: XSS in text_content must never be echoed back
   /*
   let { status, json } = await postUpload({ text_content: "<script>alert(1)</script>", user_ai_key: "sk-test-123" });

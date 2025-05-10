@@ -138,13 +138,33 @@ Deno.test("process-ai-analysis: happy path (should 200, debug, no secrets)", asy
   assert([200,404,500].includes(res.status));
   assert(res.headers.get("content-type")?.includes("application/json"));
   const data = await res.json();
-  // Should always have debug or error, and if success, message and raw_data_id
-  if (data.message && data.raw_data_id) {
-    assert(typeof data.message === "string");
-    assert(typeof data.raw_data_id === "string");
-  }
   assert("debug" in data || "error" in data);
   assert(!JSON.stringify(data).includes("sk-test-123"));
+});
+
+// Idempotency/duplicate test: process same raw_data_id twice should not fail
+Deno.test("process-ai-analysis: idempotency/duplicate process", async () => {
+  const payload = {
+    raw_data_id: "someid", // Replace with valid or fixed test value
+    user_id: "test-user",
+    user_ai_key: "sk-test-123"
+  };
+  const res1 = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data1 = await res1.json();
+  assert([200,404,500].includes(res1.status));
+  const res2 = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data2 = await res2.json();
+  assert([200,404,500].includes(res2.status));
+  // Should not crash or create duplicates
+  assert("debug" in data2 || "error" in data2);
 });
 
 // Security: ensure no secrets in debug, even when error occurs

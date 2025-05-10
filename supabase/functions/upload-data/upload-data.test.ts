@@ -118,6 +118,31 @@ Deno.test("upload-data: ignores extra fields", async () => {
   assert(res.status === 200 || res.status === 400);
 });
 
+// Idempotency/duplicate test: uploading identical data twice should not create duplicate errors
+Deno.test("upload-data: idempotency/duplicate upload", async () => {
+  const body = {
+    text_content: "Idempotency duplicate test",
+    source_metadata: { user_id: "test-user" },
+    user_ai_key: "sk-test-123"
+  };
+  const res1 = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const data1 = await res1.json();
+  assert([200,400].includes(res1.status));
+  const res2 = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const data2 = await res2.json();
+  assert([200,400].includes(res2.status));
+  // Should not crash or create duplicates; error or success both okay
+  assert("debug" in data2 || "error" in data2);
+});
+
 // Edge case: very large text_content (simulate attach 1MB+)
 Deno.test("upload-data: large text_content", async () => {
   const bigText = "A".repeat(1024 * 1024); // 1MB

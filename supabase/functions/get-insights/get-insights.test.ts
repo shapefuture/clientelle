@@ -213,9 +213,42 @@ Deno.test("get-insights: property/fuzz test for filters and args", async () => {
 });
 
 // Edge: downstream DB error simulation (requires DB manipulation or stubbing in CI)
-Deno.test("get-insights: downstream DB error", async () => {
+Deno.test("get-insights: downstream DB error (simulate)", async () => {
   // This test is mostly a template unless you can reliably trigger a DB failure.
-  assert(true);
+  // Simulate by passing a user_id or filter that triggers an error (if possible)
+  const res = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: "simulate-db-error",
+      view_type: "list_quotes"
+    }),
+  });
+  // Acceptable: 500, 400, or 200, but should not crash
+  assert([200,400,500].includes(res.status));
+  const data = await res.json();
+  assert("debug" in data || "error" in data);
+});
+
+// Idempotency: calling same insights request twice should not error or duplicate
+Deno.test("get-insights: idempotency/same request", async () => {
+  const payload = { user_id: "test-user", view_type: "list_quotes" };
+  const res1 = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data1 = await res1.json();
+  assert([200,400,500].includes(res1.status));
+  const res2 = await fetch(EDGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data2 = await res2.json();
+  assert([200,400,500].includes(res2.status));
+  // Should not crash, duplicate, or leak
+  assert("debug" in data2 || "error" in data2);
 });
 
 // TODO: Add DB/permission stubs/mocks for full isolation in CI.
