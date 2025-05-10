@@ -64,19 +64,19 @@ Deno.test("get-insights: invalid view_type", async () => {
   assert(data.error);
 });
 
-Deno.test("get-insights: valid minimal", async () => {
+Deno.test("get-insights: happy path (should 200, debug, no secrets)", async () => {
   const res = await fetch(EDGE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: "test-user", view_type: "list_quotes" }),
   });
-  // Acceptable statuses: 200 if data, 500 if DB misconfigured
+  assert([200,500].includes(res.status));
+  assert(res.headers.get("content-type")?.includes("application/json"));
   const data = await res.json();
   assert("debug" in data);
-  // Debug should include elapsed_ms and view_type
   assert(typeof data.debug.elapsed_ms === "number" && data.debug.elapsed_ms >= 0);
   assert(data.debug.view_type === "list_quotes");
-  // No secrets or sensitive info should be present
+  assert(!JSON.stringify(data).includes("sk-")); // should never leak secrets
 });
 
 // Edge case: GET with query params

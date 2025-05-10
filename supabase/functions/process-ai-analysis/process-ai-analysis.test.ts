@@ -118,11 +118,11 @@ Deno.test("process-ai-analysis: missing user_ai_key", async () => {
   assert("debug" in data || "error" in data);
 });
 
-// Edge: very large input (simulate oversized prompt)
-Deno.test("process-ai-analysis: large content", async () => {
+// Success path (requires valid raw_data_id/user_id in DB; adjust as needed)
+Deno.test("process-ai-analysis: happy path (should 200, debug, no secrets)", async () => {
   // This test assumes you have a valid raw_data_id/user_id in your test DB.
-  // Ideally, mock the DB or use a test fixture.
-  const raw_data_id = "someid"; // Replace with valid value for real integration
+  // For full CI, mock DB or skip if not available.
+  const raw_data_id = "someid"; // Replace with a real value to fully test integration
   const user_id = "test-user";
   const user_ai_key = "sk-test-123";
   const res = await fetch(EDGE_URL, {
@@ -134,9 +134,12 @@ Deno.test("process-ai-analysis: large content", async () => {
       user_ai_key
     }),
   });
+  // Acceptable: 200 for actual success, 404/500 if DB not set up in test env
+  assert([200,404,500].includes(res.status));
+  assert(res.headers.get("content-type")?.includes("application/json"));
   const data = await res.json();
-  // Should always include debug or error
   assert("debug" in data || "error" in data);
+  assert(!JSON.stringify(data).includes("sk-test-123"));
 });
 
 // Security: ensure no secrets in debug, even when error occurs

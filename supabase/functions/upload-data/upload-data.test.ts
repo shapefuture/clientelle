@@ -63,26 +63,26 @@ Deno.test("upload-data: rejects missing user_id", async () => {
   assert(data.error);
 });
 
-Deno.test("upload-data: success, triggers process-ai-analysis", async () => {
-  // You may want to stub process-ai-analysis if running locally
+Deno.test("upload-data: success path (should 200, debug, no secrets)", async () => {
+  // You may want to stub process-ai-analysis if running locally; this is a basic happy-path test.
   const res = await fetch(EDGE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text_content: "Test content for upload-data function.",
+      text_content: "Success path test content.",
       source_metadata: { user_id: "test-user", type: "manual", url: "http://test.com" },
       user_ai_key: "sk-test-123"
     }),
   });
-  const data = await res.json();
   assertEquals(res.status, 200);
+  assert(res.headers.get("content-type")?.includes("application/json"));
+  const data = await res.json();
   assert(data.raw_data_id, "should return raw_data_id");
   assert(data.source_id, "should return source_id");
   assertObjectMatch(data, { analysis_status: "success" });
-  assert(data.debug); // debug info should always be present
+  assert(data.debug);
   assert(typeof data.debug.elapsed_ms === "number" && data.debug.elapsed_ms >= 0);
-  // Ensure user_ai_key is never present in response
-  assert(!JSON.stringify(data).includes("sk-test-123"));
+  assert(!JSON.stringify(data).includes("sk-test-123")); // never leak secrets
 });
 
 // Edge case: invalid JSON (should include error and possibly debug.stack)

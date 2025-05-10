@@ -76,10 +76,12 @@ async function postUpload(body) {
   }
   */
 
-  // Test: success (requires session mocking or real login)
+  // Test: happy path (requires session mocking or real login)
   /*
   let { status, json } = await postUpload({ text_content: "Hello", user_ai_key: "sk-test-123" });
   assert(status === 200 && json.message);
+  assert(json.debug && typeof json.debug.elapsed_ms === "number");
+  assert(!JSON.stringify(json).includes("sk-test-123"));
   */
 
   // Test: debug info included on error (should include timing/elapsed_ms)
